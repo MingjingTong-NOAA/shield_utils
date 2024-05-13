@@ -1,0 +1,82 @@
+#!/bin/sh
+
+#-- load the development environment
+. ${BUILD_ROOT}/site/environment.sh
+
+echo $LOADEDMODULES
+
+## set default values
+CLEAN="noclean"
+COMP="prod"
+BIT="32bit"
+AVX="N"
+
+#
+## parse arguments
+for arg in "$@"
+do
+    case $arg in
+        prod|repro|debug)
+        COMP="${arg#*=}"
+        shift # Remove AVX Y/N/y/n from processing
+        ;;
+        clean)
+        CLEAN="clean"
+        shift # Remove clean from processing
+        ;;
+        32bit|64bit)
+        BIT="${arg#*=}"
+        shift # Remove *bit from processing
+        ;;
+        Y|N|y|n)
+        AVX="${arg#*=}"
+        shift # Remove AVX Y/N/y/n from processing
+        ;;
+    esac
+done
+
+#
+# clean out exec build area
+if [ ${CLEAN} = "clean" ] ; then
+  echo " cleaning build directory in 4 seconds "
+  sleep 2
+  (cd exec ; \rm -f *.f90 *.o *.mod test.x)
+fi
+
+ifort -V
+
+NCEPLIBS="./libdaout.a $NEMSIO_LIB $BACIO_LIB4 $SP_LIBd $W3EMC_LIBd $W3NCO_LIBd"
+
+if [ ${COMP} = "debug" ] && [ ${BIT} = "32bit" ] ; then
+  echo " debug w/ 32-bit dy-core"
+    (cd exec ; make -j 8 OPENMP=Y DEBUG=Y AVX=${AVX} -f Makefile_da_lib)
+    ifort -V
+    (cd exec ; make -j 8 OPENMP=Y DEBUG=Y AVX=${AVX} 32BIT=Y NETCDF=3 NCEPLIBS="${NCEPLIBS}" -f Makefile_fv3)
+elif [ ${COMP} = "debug" ] && [ ${BIT} != "32bit" ] ; then
+  echo " debug w/ 64-bit dy-core"
+    (cd exec ; make -j 8 OPENMP=Y DEBUG=Y AVX=${AVX} -f Makefile_da_lib)
+    ifort -V
+    (cd exec ; make -j 8 OPENMP=Y DEBUG=Y AVX=${AVX} NETCDF=3 NCEPLIBS="${NCEPLIBS}" -f Makefile_fv3)
+elif [ ${COMP} = "repro" ] && [ ${BIT} = "32bit" ] ; then
+  echo " repro w/ 32-bit dy-core"
+    (cd exec ; make -j 8 OPENMP=Y REPRO=Y AVX=${AVX} -f Makefile_da_lib)
+    ifort -V
+    (cd exec ; make -j 8 OPENMP=Y REPRO=Y AVX=${AVX} 32BIT=Y NETCDF=3 NCEPLIBS="${NCEPLIBS}" -f Makefile_fv3)
+elif [ ${COMP} = "repro" ] && [ ${BIT} != "32bit" ] ; then
+  echo " repro w/ 64-bit dy-core"
+    (cd exec ; make -j 8 OPENMP=Y REPRO=Y AVX=${AVX} -f Makefile_da_lib)
+    ifort -V
+    (cd exec ; make -j 8 OPENMP=Y REPRO=Y AVX=${AVX} NETCDF=3 NCEPLIBS="${NCEPLIBS}" -f Makefile_fv3)
+elif [ ${COMP} = "prod" ] && [ ${BIT} = "32bit" ] ; then
+  echo " prod w/ 32-bit dy-core"
+    (cd exec ; make -j 8 OPENMP=Y AVX=${AVX} -f Makefile_da_lib)
+    ifort -V
+    (cd exec ; make -j 8 OPENMP=Y AVX=${AVX} 32BIT=Y NETCDF=3 NCEPLIBS="${NCEPLIBS}" -f Makefile_fv3)
+elif [ ${COMP} = "prod" ] && [ ${BIT} != "32bit" ] ; then
+  echo " prod w/ 64-bit dy-core"
+    (cd exec ; make -j 8 OPENMP=Y AVX=${AVX} -f Makefile_da_lib)
+    ifort -V
+    (cd exec ; make -j 8 OPENMP=Y AVX=${AVX} NETCDF=3 NCEPLIBS="${NCEPLIBS}" -f Makefile_fv3)
+fi
+
+exit 0

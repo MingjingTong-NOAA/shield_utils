@@ -1,0 +1,12 @@
+#!/bin/sh
+
+echo $PATH
+
+pushd ${FV3_DA_SRC}
+
+\rm -rf pathnames_*
+
+list_paths -o pathnames_da_lib lib
+
+list_paths -o pathnames_fv3 driver/
+

@@ -1,0 +1,36 @@
+#!/bin/sh
+
+#
+### set default values
+BIT="32bit"
+
+#
+#### parse arguments
+for arg in "$@"
+do
+    case $arg in
+        32bit|64bit)
+        BIT="${arg#*=}"
+        shift # Remove *bit from processing
+        ;;
+    esac
+done
+
+cppDefs="-DSPMD"
+
+pushd exec/
+
+mkmf -m Makefile_da_lib -o "-cpp" -a ${FV3_DA_SRC} -t "${BUILD_ROOT}/${TEMPLATE}" -p libdaout.a pathnames_da_lib
+
+mkmf -m Makefile_fv3 -a ${FV3_DA_SRC} -t "${BUILD_ROOT}/${TEMPLATE}" -c "${cppDefs}" -p test.x pathnames_fv3
+
+sed 's/LDFLAGS/NCEPLIBS) $(LDFLAGS/g' < Makefile_fv3 > OUT
+mv -f OUT Makefile_fv3
+sed 's"$(FC) $(CPPDEFS) $(CPPFLAGS) $(FPPFLAGS) $(FFLAGS) $(OTHERFLAGS) $(OTHER_FFLAGS) -c\t$(SRCROOT)atmos_cubed_sphere/model_nh/nh_utils.F90"$(FC) $(CPPDEFS) $(CPPFLAGS) $(FPPFLAGS) $(FFLAGS) $(OTHERFLAGS) $(OTHER_FFLAGS) $(FAST) -c\t$(SRCROOT)atmos_cubed_sphere/model_nh/nh_utils.F90"' < Makefile_fv3 > OUT
+mv -f OUT Makefile_fv3
+sed 's"$(FC) $(CPPDEFS) $(CPPFLAGS) $(FPPFLAGS) $(FFLAGS) $(OTHERFLAGS) $(OTHER_FFLAGS) -c\t$(SRCROOT)atmos_cubed_sphere/model/fv_mapz.F90"$(FC) $(CPPDEFS) $(CPPFLAGS) $(FPPFLAGS) $(FFLAGS) $(OTHERFLAGS) $(OTHER_FFLAGS) $(FAST) -c\t$(SRCROOT)atmos_cubed_sphere/model/fv_mapz.F90"' < Makefile_fv3 > OUT
+mv -f OUT Makefile_fv3
+
+popd
+
+exit 0
