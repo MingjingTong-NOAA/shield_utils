@@ -23,8 +23,9 @@ module interp_res_ncio_mod
   use fv3_da_ctrl_mod, only: finer_steps, nvar3dout,                   &
                         read_res, write_res, memphis, write_nemsio,    &
                         grid_file, data_file, data_out,                &
-                        uname, vname, missing_value,                   &
+                        uname, vname, missing_value,time_unlimited,    &
                         fill_missing,write_nemsioflip,ideflate, nbits, &
+                        quantize_nsd,quantize_mode,                    &
                         rmhydro, pseudo_ps, get_weights_only,atminc,   &
                         gaus_file, yy, mm, dd, hh, fhr
 
@@ -71,7 +72,7 @@ contains
     integer i, j, k, lm, lunit, rc, error
     integer, parameter :: nrec_all=18
     integer :: ncid, id_dim, id_var, vartype
-    integer :: ntrac,nsoil,ntot3d
+    integer :: ntrac,nsoil,ntot3d,ncnst
     integer, parameter :: nvar3d_full=16 
 
     real(4), allocatable   :: dummy_r4(:)
@@ -79,7 +80,8 @@ contains
     real, dimension(:), allocatable   :: ak, bk, pf, ph
     real(4), dimension(:), allocatable   :: pfull, phalf
     real, dimension(:), allocatable  :: lat1d
-    real, dimension(:,:), allocatable :: lon2d, lat2d
+    real(8), dimension(:,:), allocatable :: array_r8
+    integer, dimension(:), allocatable   :: start_idx
 
     real, parameter :: p_ref = 1.E5
     character(len=nf90_max_name) :: time_units
@@ -91,7 +93,10 @@ contains
     integer :: im_varid, jm_varid, lm_varid, lon_varid, lat_varid
     integer :: pfull_varid, phalf_varid
     integer :: ichunk2d,jchunk2d,ichunk3d,jchunk3d,kchunk3d
+    integer :: ishuffle,quant_mode
+    integer :: istart, jstart, iend, jend
     logical :: shuffle
+    integer, dimension(:), allocatable :: chunksizes
 
     data recname_all /'ugrd', 'vgrd', 'tmp', 'delz',      &
                       'dpres', 'spfh',  'clwmr', 'rwmr',  &
@@ -130,8 +135,8 @@ contains
 
     call check(nf90_def_dim(ncid_out, "grid_xt", im, im_dimid))
     call check(nf90_def_var(ncid_out, "grid_xt", NF90_DOUBLE, im_dimid, im_varid))
-    call check(nf90_put_att(ncid_out, im_varid, "cartesian_axis", "X"))
     call check(nf90_put_att(ncid_out, im_varid, "long_name", "T-cell longitude"))
+    call check(nf90_put_att(ncid_out, im_varid, "cartesian_axis", "X"))
     call check(nf90_put_att(ncid_out, im_varid, "units", "degrees_E"))
 
     call check(nf90_def_dim(ncid_out, "grid_yt", jm, jm_dimid))
@@ -140,37 +145,42 @@ contains
     call check(nf90_put_att(ncid_out, jm_varid, "long_name", "T-cell latitude"))
     call check(nf90_put_att(ncid_out, jm_varid, "units", "degrees_N"))
 
-    call check(nf90_def_var(ncid_out, "lon", NF90_DOUBLE, (/im_dimid,jm_dimid/), lon_varid))
+    call check(nf90_def_var(ncid_out, "lon", NF90_DOUBLE, [im_dimid,jm_dimid           ], lon_varid))
     call check(nf90_put_att(ncid_out, lon_varid, "long_name", "T-cell longitude"))
     call check(nf90_put_att(ncid_out, lon_varid, "units", "degrees_E"))
     
-    call check(nf90_def_var(ncid_out, "lat", NF90_DOUBLE, (/im_dimid,jm_dimid/), lat_varid))
+    call check(nf90_def_var(ncid_out, "lat", NF90_DOUBLE, [im_dimid,jm_dimid           ], lat_varid)) 
     call check(nf90_put_att(ncid_out, lat_varid, "long_name", "T-cell latitude"))
     call check(nf90_put_att(ncid_out, lat_varid, "units", "degrees_N"))
 
     call check(nf90_def_dim(ncid_out, "pfull", lm-1, pfull_dimid))
-    call check(nf90_def_var(ncid_out, "pfull", nf90_float, dimids=(/pfull_dimid/), varid=pfull_varid))
-    call check(nf90_put_att(ncid_out, pfull_varid, "long_name", "ref full pressure level"))
-    call check(nf90_put_att(ncid_out, pfull_varid, "units", "mb"))
+    call check(nf90_def_var(ncid_out, "pfull", NF90_FLOAT, pfull_dimid, varid=pfull_varid))
     call check(nf90_put_att(ncid_out, pfull_varid, "cartesian_axis", "Z"))
-    call check(nf90_put_att(ncid_out, pfull_varid, "positive", "down"))
     call check(nf90_put_att(ncid_out, pfull_varid, "edges", "phalf"))
+    call check(nf90_put_att(ncid_out, pfull_varid, "long_name", "ref full pressure level"))
+    call check(nf90_put_att(ncid_out, pfull_varid, "positive", "down"))
+    call check(nf90_put_att(ncid_out, pfull_varid, "units", "mb"))
 
     call check(nf90_def_dim(ncid_out, "phalf", lm, phalf_dimid))
-    call check(nf90_def_var(ncid_out, "phalf", nf90_float, dimids=(/phalf_dimid/), varid=phalf_varid))
-    call check(nf90_put_att(ncid_out, phalf_varid, "long_name", "ref half pressure level"))
-    call check(nf90_put_att(ncid_out, phalf_varid, "units", "mb"))
+    call check(nf90_def_var(ncid_out, "phalf", NF90_FLOAT, phalf_dimid, varid=phalf_varid))
     call check(nf90_put_att(ncid_out, phalf_varid, "cartesian_axis", "Z"))
+    call check(nf90_put_att(ncid_out, phalf_varid, "long_name", "ref half pressure level"))
     call check(nf90_put_att(ncid_out, phalf_varid, "positive", "down"))
+    call check(nf90_put_att(ncid_out, phalf_varid, "units", "mb"))
 
-    call check(nf90_def_dim(ncid_out, "time", NF90_UNLIMITED, time_dimid))
-    call check(nf90_def_var(ncid_out, "time", NF90_DOUBLE, dimids=(/time_dimid/), varid=time_varid))
+    if (time_unlimited) then
+       call check(nf90_def_dim(ncid_out, "time", NF90_UNLIMITED, time_dimid))
+    else
+       call check(nf90_def_dim(ncid_out, "time", 1, time_dimid))
+    end if
+    call check(nf90_def_var(ncid_out, "time", NF90_DOUBLE, time_dimid, varid=time_varid))
+    call check(nf90_put_att(ncid_out, time_varid, "calendar", "GREGORIAN"))
+    call check(nf90_put_att(ncid_out, time_varid, "calendar_type", "GREGORIAN"))
+    call check(nf90_put_att(ncid_out, time_varid, "cartesian_axis", "T"))
     call check(nf90_put_att(ncid_out, time_varid, "long_name", "time"))
     call check(nf90_put_att(ncid_out, time_varid, "units", time_units))
-    call check(nf90_put_att(ncid_out, time_varid, "cartesian_axis", "T"))
-    call check(nf90_put_att(ncid_out, time_varid, "calendar_type", "JULIAN"))
-    call check(nf90_put_att(ncid_out, time_varid, "calendar", "JULIAN"))
 
+    ncnst=10
     ntrac=9
     ncld=5
     nsoil=4
@@ -188,55 +198,63 @@ contains
 
     recid=0
 
-    ichunk2d=im; jchunk2d=20
-    ichunk3d=im; jchunk3d=20; kchunk3d=npz
+    ichunk2d=im; jchunk2d=jm
+    ichunk3d=im; jchunk3d=jm; kchunk3d=npz
     print *,'ichunk3d, jchunk3d, kchunk3d=', ichunk3d, jchunk3d, kchunk3d
+    print *,'ichunk2d, jchunk2d=', ichunk2d, jchunk2d
+    print *,'ideflate= ', ideflate, 'quantize_nsd= ', quantize_nsd 
+    print *,'nvar3d = ', nvar3d
+    print *,'im_dimid,jm_dimid,pfull_dimid,time_dimid=', im_dimid,jm_dimid,pfull_dimid,time_dimid
 
+    ishuffle = NF90_NOSHUFFLE
+    ! shuffle filter on when using lossy compression
+    if ( quantize_nsd > 0) then
+       ishuffle = NF90_SHUFFLE
+    end if
+
+    allocate(chunksizes(4)) 
     do j = 1, nvar3d
+       call check(nf90_def_var(ncid_out, trim(recname_all(j)), NF90_FLOAT, &
+                  [im_dimid,jm_dimid,pfull_dimid,time_dimid], recid(j)))
+       print *, 'recname ', j, trim(recname_all(j)), recid(j)
        if (ideflate > 0) then
-          ! shuffle filter off for 3d fields using lossy compression
-          if (nbits > 0) then
-             shuffle=.false.
-          else
-             shuffle=.true.
-          endif
-          if (ichunk3d < 0 .or. jchunk3d < 0 .or. kchunk3d < 0) then
-             call check(nf90_def_var(ncid_out, trim(recname_all(j)), nf90_float, &
-                        (/im_dimid,jm_dimid,pfull_dimid,time_dimid/), recid(j), &
-                        shuffle=shuffle,deflate_level=ideflate))
-          else
-             call check(nf90_def_var(ncid_out, trim(recname_all(j)), nf90_float, &
-                        (/im_dimid,jm_dimid,pfull_dimid,time_dimid/), recid(j), &
-                        shuffle=shuffle,deflate_level=ideflate, &
-                        chunksizes=(/ichunk3d,jchunk3d,kchunk3d,1/)))
-          endif
-       else
-          call check(nf90_def_var(ncid_out, trim(recname_all(j)), nf90_float, &
-                     (/im_dimid,jm_dimid,pfull_dimid,time_dimid/), recid(j)))
-       endif
+          chunksizes = [ichunk3d,jchunk3d,kchunk3d,1]
+          call check(nf90_def_var_chunking(ncid_out, recid(j), NF90_CHUNKED, chunksizes))
+          call check(nf90_def_var_deflate(ncid_out, recid(j), ishuffle, 1, ideflate))
+          if (quantize_nsd > 0) then
+              if (trim(quantize_mode) == 'quantize_bitgroom') then
+                quant_mode = 1
+              else if (trim(quantize_mode) == 'quantize_granularbr') then
+                quant_mode = 2
+              else if (trim(quantize_mode) == 'quantize_bitround') then
+                quant_mode = 3
+              else
+                print *, 'Unknown quantize_mode ', trim(quantize_mode)
+                stop "Stopped"
+              endif
+              call check(nf90_def_var_quantize(ncid_out, recid(j), quant_mode, quantize_nsd))
+          end if
+       end if
        call nc_put_attribute(ncid_out, recid(j), reclongname(j), recunit(j))
     end do
+    deallocate(chunksizes)
+
+    allocate(chunksizes(3))
     if (nvar2d > 0) then
        do j = 1, nvar2d
+          call check(nf90_def_var(ncid_out, trim(recname_all(nvar3d_full+j)), NF90_FLOAT, &
+                     [im_dimid,jm_dimid,time_dimid], recid(nvar3d+j)))
+          print *, 'recname = ', nvar3d_full+j, trim(recname_all(nvar3d_full+j)), recid(nvar3d+j)
           if (ideflate > 0) then
-             if (ichunk2d < 0 .or. jchunk2d < 0) then
-                call check(nf90_def_var(ncid_out, trim(recname_all(nvar3d_full+j)), &
-                           nf90_float,(/im_dimid,jm_dimid,time_dimid/), &
-                           recid(nvar3d+j),shuffle=.true.,deflate_level=ideflate))
-             else
-                call check(nf90_def_var(ncid_out, trim(recname_all(nvar3d_full+j)), &
-                           nf90_float,(/im_dimid,jm_dimid,time_dimid/), &
-                           recid(nvar3d+j),shuffle=.true.,deflate_level=ideflate, &
-                           chunksizes=(/ichunk2d,jchunk2d,1/),cache_size=40*im*jm))
-             endif
-          else
-             call check(nf90_def_var(ncid_out, trim(recname_all(nvar3d_full+j)), &
-                        nf90_float, (/im_dimid,jm_dimid,time_dimid/), recid(nvar3d+j)))
+             chunksizes = [ichunk2d,jchunk2d,1]
+             call check(nf90_def_var_chunking(ncid_out, recid(nvar3d+j), NF90_CHUNKED, chunksizes))
+             call check(nf90_def_var_deflate(ncid_out, recid(nvar3d+j), ishuffle, 1, ideflate))
           endif
           call nc_put_attribute(ncid_out, recid(nvar3d+j), &
                                 reclongname(nvar3d_full+j), recunit(nvar3d_full+j))
        end do
     endif
+    deallocate(chunksizes)
 
     allocate(ak(lm),bk(lm))
 
@@ -275,12 +293,12 @@ contains
     ptop = ak(1)
     print *,'ptop=', ptop
 
-    call check(nf90_put_att(ncid_out, NF90_GLOBAL, 'hydrostatic', 'non-hydrostatic'))
-    call check(nf90_put_att(ncid_out, NF90_GLOBAL, 'ncnsto', ntrac))
-    call check(nf90_put_att(ncid_out, NF90_GLOBAL, 'source', 'SHiELD'))
     call check(nf90_put_att(ncid_out, NF90_GLOBAL, 'grid', 'gaussian'))
+    call check(nf90_put_att(ncid_out, NF90_GLOBAL, 'hydrostatic', 'non-hydrostatic'))
     call check(nf90_put_att(ncid_out, NF90_GLOBAL, 'im', im))
     call check(nf90_put_att(ncid_out, NF90_GLOBAL, 'jm', jm))
+    call check(nf90_put_att(ncid_out, NF90_GLOBAL, 'ncnsto', ncnst))
+    call check(nf90_put_att(ncid_out, NF90_GLOBAL, 'source', 'SHiELD'))
 
     call check(nf90_enddef(ncid=ncid_out))
 
@@ -295,21 +313,30 @@ contains
        lat1d=lat
     end if
 
-    call check(nf90_put_var(ncid_out, im_varid, lon))
-    call check(nf90_put_var(ncid_out, jm_varid, lat1d))
+    allocate(array_r8(im,jm))
 
-    allocate(lon2d(im,jm),lat2d(im,jm))
+    istart = lbound(array_r8,1); iend   = ubound(array_r8,1)
+    jstart = lbound(array_r8,2); jend   = ubound(array_r8,2)
+
+    allocate(start_idx(2))
+    start_idx = [1, 1]
+
     do j=1,jm
-       lon2d(:,j)=lon(:)
+       array_r8(:,j)=lon(:)
     end do
+    call check(nf90_put_var(ncid_out, lon_varid, values=array_r8, start=start_idx))
+    call check(nf90_put_var(ncid_out, im_varid, values=array_r8(:,jstart), start=[istart], count=[iend-istart+1]))
+
     do i=1,im
-       lat2d(i,:)=lat1d(:)
+       array_r8(i,:)=lat1d(:)
     end do
 
-    call check(nf90_put_var(ncid_out, lon_varid, lon2d))
-    call check(nf90_put_var(ncid_out, lat_varid, lat2d)) 
+    call check(nf90_put_var(ncid_out, lat_varid, values=array_r8, start=start_idx)) 
+    call check(nf90_put_var(ncid_out, jm_varid, values=array_r8(istart,:), start=[jstart], count=[jend-jstart+1]))
 
-    deallocate(lat1d,lon2d,lat2d)
+    deallocate(lat1d)
+    deallocate(start_idx)
+    deallocate(array_r8)
 
     if (lm > 0)  then
       pfull_dimid=lm-1
@@ -361,11 +388,10 @@ contains
 
     real*4 :: misval_r4
     real*8 :: misval_r8
+    real*4 :: var_r4
+    real*8 :: var_r8
     real*8, dimension(:), allocatable :: time
-    real*4, dimension(:,:,:), allocatable :: var_r4
-    real*8, dimension(:,:,:), allocatable :: var_r8
     real*4, dimension(:), allocatable :: compress_err
-    integer*2, dimension(:,:,:), allocatable :: var_i2
     real, dimension(:), allocatable :: xlon_deg, ylat_deg
     real, dimension(:), allocatable :: xlon_crs, ylat_crs, varmisval, varscale, varoffset
     real, dimension(:,:,:), allocatable :: var_latlon, var_latlon_crs, var_latlon_new
@@ -385,7 +411,7 @@ contains
                dimids(4), dimid, dimlen, lon_id, lat_id,                &
                u_id, v_id, name_len, attype, attlen, time_type,         &
                time_varid, delp_type, nhydro
-    real :: delp_scale,delp_offset
+    real :: delp_scale,delp_offset,delp_misval
 
     integer, dimension(:), allocatable :: ncid_in, vartype,             &
          varndims, varnatts, varid, nlev
@@ -453,7 +479,7 @@ contains
     print*,"- WRITE ATMS DATA TO NETCDF FILE: ", trim(data_out)
 
     call check(nf90_create(data_out, &
-               cmode=IOR(IOR(NF90_CLOBBER,NF90_NETCDF4),NF90_CLASSIC_MODEL),&
+               cmode=IOR(NF90_CLOBBER,NF90_NETCDF4), &
                ncid=ncid_out))
 
     call check(nf90_set_fill(ncid_out, NF90_NOFILL, oldMode))
@@ -510,6 +536,9 @@ call timing_on('interp_res_cr')
        !------------------------------------------------------------------!
        status = nf90_inquire(ncid_in(1), ndims, nvars, ngatts, time_dim)
        status = nf90_inquire_dimension(ncid_in(1), time_dim, time_name, ntime)
+       if (.not. time_unlimited) then
+         ntime = 1
+       endif
        status = nf90_inq_varid(ncid_in(1), trim(time_name), time_id)
        if (status /= nf90_noerr) then
           print*,"NO time variable ", trim(time_name), " in file ",trim(filename)
@@ -586,6 +615,9 @@ call timing_on('interp_res_cr')
 
        !print *,'mdvarname(1:nvar3d)=', mdvarname(1:nvar3d)
    
+       varmisval = 9.99e+20
+       varoffset = 0.0
+       varscale = 0.0 
        do iv=1,nvars
           status = nf90_inquire_variable(ncid_in(1), iv, name=varname(iv), &
                                          xtype=vartype(iv),ndims=varndims(iv), &
@@ -714,8 +746,12 @@ call timing_on('interp_res_cal')
        ! start loop over time dependent arrays                            !
        !------------------------------------------------------------------!
        do it=1,ntime
-          if (time_type == nf90_double .or. time_type == nf90_float) then
-            status = nf90_put_var(ncid_out, time_varid, fhr-1+time(it))
+          if (time_type == NF90_DOUBLE) then
+            var_r8 = fhr-1+time(it)
+            status = nf90_put_var(ncid_out, time_varid, values=var_r8)
+          else if (time_type == NF90_FLOAT) then
+            var_r4 = fhr-1+time(it)
+            status = nf90_put_var(ncid_out, time_varid, values=var_r4)
           else
             print*," time variable ",trim(time_name), " has to be real"
             stop
@@ -762,13 +798,11 @@ call timing_off('interp_res_rd')
                       end if
                    end do
                    if (finer_steps==0) then
-                      start(1:4)=(/1,1,1,it/)
-                      count(1:4)=(/nlon,nlat,nlev(iv),1/)
 call timing_on('interp_res_wr')
                       call nc_put_variable(ncid_out, voutid(jrec), vartype(iv),  &
                                            varoffset(iv), varscale(iv), nlon,  &
-                                           nlat, nlev(iv), ncflip, kflip, ua_latlon, start,   &
-                                           count, ideflate, nbits, compress_err(jrec))
+                                           nlat, nlev(iv), ncflip, kflip, ua_latlon, &
+                                           ideflate, nbits, compress_err(jrec), varmisval(iv))
 call timing_off('interp_res_wr')
                    else
                       allocate(var_latlon_crs(nlon_crs,nlat_crs,nlev(iv)))
@@ -776,13 +810,11 @@ call timing_off('interp_res_wr')
                                                 var_latlon_crs, nlon_crs, nlat_crs, finer_steps, &
                                                 misval(u_id), varmisval(u_id))
 call timing_on('interp_res_wr')
-                      start(1:4)=(/1,1,1,it/)
-                      count(1:4)=(/nlon_crs,nlat_crs,nlev(iv),1/)
                       call nc_put_variable(ncid_out, voutid(jrec), vartype(iv), &
                                            varoffset(iv), varscale(iv),  &
                                            nlon_crs, nlat_crs, nlev(iv), ncflip, &
-                                           kflip, var_latlon_crs, start, count, &
-                                           ideflate, nbits, compress_err(jrec))
+                                           kflip, var_latlon_crs, &
+                                           ideflate, nbits, compress_err(jrec), varmisval(iv))
 call timing_off('interp_res_wr')
                       deallocate(var_latlon_crs)
                    endif
@@ -796,27 +828,23 @@ call timing_off('interp_res_wr')
                       end if
                    end do
                    if (finer_steps==0) then
-                      start(1:4)=(/1,1,1,it/)
-                      count(1:4)=(/nlon,nlat,nlev(iv),1/)
 call timing_on('interp_res_wr')
                       call nc_put_variable(ncid_out, voutid(jrec), vartype(iv), &
                                            varoffset(iv), varscale(iv), nlon, &
-                                           nlat, nlev(iv), ncflip, kflip, va_latlon, start, &
-                                           count, ideflate, nbits, compress_err(jrec))
+                                           nlat, nlev(iv), ncflip, kflip, va_latlon, &
+                                           ideflate, nbits, compress_err(jrec), varmisval(iv))
 call timing_off('interp_res_wr')
                    else
                       allocate(var_latlon_crs(nlon_crs,nlat_crs,nlev(iv)))
                       call do_latlon_coarsening(va_latlon, da%ylat, nlon, nlat, nlev(iv),        &
                                                 var_latlon_crs, nlon_crs, nlat_crs, finer_steps, &
                                                 misval(v_id), varmisval(v_id))
-                      start(1:4)=(/1,1,1,it/)
-                      count(1:4)=(/nlon_crs,nlat_crs,nlev(iv),1/)
 call timing_on('interp_res_wr')
                       call nc_put_variable(ncid_out, voutid(jrec), vartype(iv), &
                                            varoffset(iv), varscale(iv),  &
                                            nlon_crs, nlat_crs, nlev(iv), ncflip, &
-                                           kflip, var_latlon_crs, start, count, &
-                                           ideflate, nbits, compress_err(jrec))
+                                           kflip, var_latlon_crs, &
+                                           ideflate, nbits, compress_err(jrec), varmisval(iv))
 call timing_off('interp_res_wr')
                       deallocate(var_latlon_crs)
                    endif
@@ -905,20 +933,19 @@ call timing_off('interp_res_rd')
                    
                       if (finer_steps==0) then
                          if (varndims(iv)==3 .and. trim(varname(iv)) == 'phis' ) then
-                            start(1:3)=(/1,1,it/)
-                            count(1:3)=(/nlon,nlat,1/)
                             jrec = nvar3d + 2
 call timing_on('interp_res_wr')
                             call nc_put_variable(ncid_out, voutid(jrec), vartype(iv), &
                                                  varoffset(iv), varscale(iv), nlon, &
-                                                 nlat, 1, ncflip, kflip, var_latlon(:,:,1), start, &
-                                                 count, ideflate, nbits, compress_err(jrec))
+                                                 nlat, 1, ncflip, kflip, var_latlon(:,:,1), &
+                                                 ideflate, nbits, compress_err(jrec), varmisval(iv))
 call timing_off('interp_res_wr')
                          else
                             if (trim(varname(iv)) == 'delp') then
                                delp_scale=varscale(iv)
                                delp_offset=varoffset(iv)
                                delp_type=vartype(iv)
+                               delp_misval=varmisval(iv)
                             endif
 call timing_on('interp_res_wr')
                             do j = 1, nvar3d
@@ -927,12 +954,10 @@ call timing_on('interp_res_wr')
                                   exit
                                end if
                             end do
-                            start(1:4)=(/1,1,1,it/)
-                            count(1:4)=(/nlon,nlat,nlev(iv),1/)
                             call nc_put_variable(ncid_out, voutid(jrec), vartype(iv), &
                                                  varoffset(iv), varscale(iv), nlon, &
-                                                 nlat, nlev(iv), ncflip, kflip, var_latlon, start, &
-                                                 count, ideflate, nbits, compress_err(jrec))
+                                                 nlat, nlev(iv), ncflip, kflip, var_latlon, &
+                                                 ideflate, nbits, compress_err(jrec), varmisval(iv))
 call timing_off('interp_res_wr')
                          endif
                       else
@@ -942,15 +967,13 @@ call timing_off('interp_res_wr')
                               misval(iv), varmisval(iv))
                          if (varndims(iv)==3 .and. trim(varname(iv)) == 'phis') then
                             allocate(var_latlon_new(nlon_crs,nlat_crs,1))
-                            start(1:3)=(/1,1,it/)
-                            count(1:3)=(/nlon_crs,nlat_crs,1/)
                             jrec = nvar3d + 2
                             var_latlon_new(:,:,1)=var_latlon_crs(:,:,1)/grav
 call timing_on('interp_res_wr')
                             call nc_put_variable(ncid_out, voutid(jrec), vartype(iv), &
                                                  varoffset(iv), varscale(iv), nlon, &
-                                                 nlat, 1, ncflip, kflip, var_latlon_new, start, &
-                                                 count, ideflate, nbits, compress_err(jrec))
+                                                 nlat, 1, ncflip, kflip, var_latlon_new, &
+                                                 ideflate, nbits, compress_err(jrec), varmisval(iv))
                             deallocate(var_latlon_new)
 call timing_off('interp_res_wr')
                          else
@@ -958,6 +981,7 @@ call timing_off('interp_res_wr')
                                delp_scale=varscale(iv)
                                delp_offset=varoffset(iv)
                                delp_type=vartype(iv)
+                               delp_misval=varmisval(iv)
                             endif
 call timing_on('interp_res_wr')
                             do j = 1, nvar3d
@@ -966,13 +990,11 @@ call timing_on('interp_res_wr')
                                   exit
                                end if
                             end do
-                            start(1:4)=(/1,1,1,it/)
-                            count(1:4)=(/nlon_crs,nlat_crs,nlev(iv),1/)
                             call nc_put_variable(ncid_out, voutid(jrec), vartype(iv), &
                                                  varoffset(iv), varscale(iv), nlon_crs, &
                                                  nlat_crs, nlev(iv), ncflip, kflip, &
-                                                 var_latlon_crs, start, count, &
-                                                 ideflate, nbits, compress_err(jrec))
+                                                 var_latlon_crs, &
+                                                 ideflate, nbits, compress_err(jrec), varmisval(iv))
 call timing_off('interp_res_wr')
                          endif
                          deallocate(var_latlon_crs)
@@ -1004,12 +1026,10 @@ call timing_off('interp_res_cal')
     if (nvar2d > 0) then
        do it=1,ntime
           jrec = nvar3d + 1
-          start(1:3)=(/1,1,it/)
-          count(1:3)=(/im,jm,1/)
           call nc_put_variable(ncid_out, voutid(jrec), delp_type, &
                                delp_offset, delp_scale, im, jm, 1, &
-                               ncflip, kflip, ps_latlon, start, count, &
-                               ideflate, nbits, compress_err(jrec))
+                               ncflip, kflip, ps_latlon, &
+                               ideflate, nbits, compress_err(jrec), delp_misval)
           deallocate(ps_latlon) 
        end do
     endif
@@ -1103,9 +1123,10 @@ call timing_off('interp_res_cal')
         character(len=120), intent(in) :: reclongname, recunit
         integer :: ncerr
 
+        ncerr = nf90_put_att(ncid, varid, "cell_methods", "time: point")
         ncerr = nf90_put_att(ncid, varid, "long_name", trim(reclongname))
-        ncerr = nf90_put_att(ncid, varid, "units", trim(recunit))
         ncerr = nf90_put_att(ncid, varid, "output_file","atm")
+        ncerr = nf90_put_att(ncid, varid, "units", trim(recunit))
 
       end subroutine nc_put_attribute
 

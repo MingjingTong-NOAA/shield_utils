@@ -39,6 +39,7 @@ module fv3_da_ctrl_mod
   integer :: hh=0
   integer :: ideflate=1
   integer :: nbits=14
+  integer :: quantize_nsd=0
   integer :: atmos_nthreads=1
   real    :: fhr=0.
   logical :: read_res=.false.
@@ -51,6 +52,7 @@ module fv3_da_ctrl_mod
   logical :: pseudo_ps=.false.
   logical :: atminc=.false.
   logical :: get_weights_only=.false.
+  logical :: time_unlimited=.false.
   character(len=120) :: grid_file="grid_spec"
   character(len=120) :: gaus_file="gaus_N48"
   character(len=120) :: data_out="atmf"
@@ -58,6 +60,7 @@ module fv3_da_ctrl_mod
   character(len=120) :: vname="va"
   character(len=120) :: missing_value="missing_value"
   character(len=120) :: data_file(3)
+  character(len=120) :: quantize_mode="quantize_bitround"
 
   ! -----------------------------------------------------------------------
   ! namelist
@@ -66,13 +69,15 @@ module fv3_da_ctrl_mod
   namelist /fv3_da_nml/ ntiles, finer_steps, nvar3dout, atminc,     &
                         write_res, read_res, memphis, write_nemsio, &
                         grid_file, data_file, data_out,             &
-                        uname, vname, missing_value,                &
+                        uname, vname, missing_value, time_unlimited,&
                         fill_missing, write_nemsioflip,rmhydro,     &
                         pseudo_ps, get_weights_only, gaus_file,     &
-                        atmos_nthreads, yy,mm, dd, hh, fhr, ideflate, nbits
+                        atmos_nthreads, yy,mm, dd, hh, fhr,         &
+                        ideflate, nbits, quantize_nsd, quantize_mode
 
   public &
       ntiles, finer_steps, nvar3dout, yy, mm, dd, hh, ideflate, nbits, &
+      quantize_nsd, quantize_mode,time_unlimited,                      &
       fhr, read_res, write_res, memphis, fill_missing, write_nemsio,   &
       write_nemsioflip, rmhydro, pseudo_ps, atminc, get_weights_only,  &
       grid_file, gaus_file, uname, vname, missing_value, data_file, data_out
@@ -303,27 +308,34 @@ contains
   end subroutine nc_get_cube_variable
 
   subroutine nc_put_variable(ncid, varid, vartype, varoffset, varscale, &
-                             nlon, nlat, nlev, ncflip, kflip, &
-                             var_latlon, start, count, ideflate, nbits, &
-                             compress_err)
+                             nlon, nlat, nlev, ncflip, kflip, var_latlon, &
+                             ideflate, nbits, compress_err, misval)
 
     integer, intent(in) :: ncid, varid, vartype, nlon, nlat, nlev
     integer, intent(in) :: ideflate, nbits
-    integer, intent(in) :: start(4), count(4)
-    real, intent(in) :: varoffset, varscale
+    real, intent(in) :: varoffset, varscale, misval
     real, intent(in) :: var_latlon(nlon,nlat,nlev)
     logical, intent(in) :: ncflip, kflip
+    integer, dimension(:), allocatable   :: start_idx
     real*4, dimension(:,:,:), allocatable :: var_r4, var_r4_save
     real*8, dimension(:,:,:), allocatable :: var_r8
     integer*2, dimension(:,:,:), allocatable :: var_i2
     real, dimension(:,:,:), allocatable :: var_tmp, var_new
     real*4 :: dataMin, dataMax, compress_err
-    integer :: status,iend,j,k
+    integer :: status,j,k,start_i, start_j
+
+    start_i = 1
+    start_j = 1
     
     if (nlev == 1) then
-       iend=3
+       start_idx = [start_i,start_j,        1]
     else
-       iend=4
+       allocate(start_idx(4))
+       start_idx = [start_i,start_j,1,        1]
+    endif
+
+    if (misval /= 0.0) then
+       status = nf90_put_att(ncid, varid, "missing_value", misval)
     endif
 
     allocate(var_tmp(nlon,nlat,nlev))
@@ -347,7 +359,7 @@ contains
     if (vartype==nf90_double) then
        allocate(var_r8(nlon,nlat,nlev))
        var_r8(:,:,:)=var_new(:,:,:)
-       status = nf90_put_var(ncid, varid, var_r8, start=start(1:iend), count=count(1:iend))
+       status = nf90_put_var(ncid, varid, var_r8, start=start_idx)
        deallocate(var_r8)
     elseif (vartype==nf90_float) then
        allocate(var_r4(nlon,nlat,nlev))
@@ -363,15 +375,16 @@ contains
        else
           var_r4 = var_new
        endif
-       status = nf90_put_var(ncid, varid, var_r4, start=start(1:iend), count=count(1:iend))
+       status = nf90_put_var(ncid, varid, var_r4, start=start_idx)
        deallocate(var_r4)
     elseif (vartype==nf90_short) then
        allocate(var_i2(nlon,nlat,nlev))
        var_i2(:,:,:)=(var_new(:,:,:)-varoffset)/varscale
-       status = nf90_put_var(ncid, varid, var_i2, start=start(1:iend), count=count(1:iend))
+       status = nf90_put_var(ncid, varid, var_i2, start=start_idx)
        deallocate(var_i2)
     endif
     deallocate(var_tmp,var_new)
+    deallocate(start_idx)
 
   end subroutine nc_put_variable
 

@@ -15,6 +15,12 @@ set(lib_src
 
 add_library(libdaio ${lib_src})
 
+if(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -r8 -i4 -fp-model precise")
+elseif(CMAKE_Fortran_COMPILER_ID MATCHES "^(GNU)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fdefault-real-8")
+endif()
+
 set(exe_name fv3_c2g_atms.x)
 add_executable(${exe_name} main.F90)
 
@@ -27,5 +33,9 @@ target_link_libraries(
   nemsio::nemsio)
 
 target_link_libraries(${exe_name} PRIVATE libdaio)
+
+if(OpenMP_Fortran_FOUND)
+  target_link_libraries(${exe_name} PRIVATE OpenMP::OpenMP_Fortran)
+endif()
 
 install(TARGETS ${exe_name} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

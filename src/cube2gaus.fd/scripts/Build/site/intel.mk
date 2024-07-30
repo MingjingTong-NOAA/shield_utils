@@ -32,6 +32,14 @@ MPI_ROOT    = $(MPICH_DIR)
 INCLUDE = -I$(NETCDF_ROOT)/include
 INCLUDE += -I$(NEMSIO_INC)
 
+ifneq (`nc-config --libs`,)
+  INCLUDE = `nf-config --fflags` `nc-config --cflags`
+  LIBS += `nf-config --flibs` `nc-config --libs`
+else
+  INCLUDE = -I$(NETCDF_ROOT)/include
+  LIBS += -lnetcdff -lnetcdf -lhdf5_hl -lhdf5 -lz
+endif
+INCLUDE += -I$(NEMSIO_INC)
 FPPFLAGS := -fpp -Wp,-w $(INCLUDE)
 
 FFLAGS := $(INCLUDE) -fno-alias -auto -safe-cray-ptr -ftz -assume byterecl -nowarn -sox -align array64byte
@@ -77,9 +85,6 @@ LDFLAGS :=
 LDFLAGS_OPENMP := -qopenmp
 LDFLAGS_VERBOSE := -Wl,-V,--verbose,-cref,-M
 
-# start with blank LIBS
-LIBS :=
-
 ifneq ($(REPRO),)
 CFLAGS += $(CFLAGS_REPRO)
 FFLAGS += $(FFLAGS_REPRO)
@@ -117,13 +122,10 @@ ifeq ($(NETCDF),3)
   endif
 endif
 
-ifneq ($(findstring netcdf/4,$(LOADEDMODULES)),)
-  LIBS += -lnetcdff -lnetcdf -lhdf5_hl -lhdf5 -lz
-else
-  LIBS += -lnetcdf
-endif
 
-LIBS +=  $(NEMSIO_LIB) 
+LIBS +=  $(NEMSIO_LIB)
+
+$(info   LIBS is $(LIBS))
 LDFLAGS += $(LIBS)
 
 #---------------------------------------------------------------------------
@@ -146,8 +148,12 @@ LDFLAGS += $(LIBS)
 # The macro TMPFILES is provided to slate files like the above for removal.
 
 RM = rm -f
-SHELL = /bin/csh -f
-TMPFILES = .*.m *.B *.L *.i *.i90 *.l *.s *.mod *.opt
+ifeq (${SHELL},csh)
+ SHELL = /bin/csh -f
+else
+ SHELL = /bin/bash -f
+endif
+TMPFILES = .*.m *.B *.L *.i *.i90 *.l *.s *.opt
 
 .SUFFIXES: .F .F90 .H .L .T .f .f90 .h .i .i90 .l .o .s .opt .x
 
