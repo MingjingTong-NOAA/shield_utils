@@ -22,10 +22,6 @@
 #                   Default is /nwprod2.
 #     HOMEgfs       Directory for gfs version.  Default is
 #                   $BASEDIR/gfs_ver.v15.0.0}
-#     FIXam         Directory for the global fixed climatology files.
-#                   Defaults to $HOMEgfs/fix/fix_am
-#     FIXfv3        Directory for the model grid and orography netcdf
-#                   files.  Defaults to $HOMEgfs/fix/fix_fv3_gmted2010
 #     FIXWGTS       Weight file to use for interpolation
 #     EXECgfs       Directory of the program executable.  Defaults to
 #                   $HOMEgfs/exec
@@ -78,9 +74,7 @@
 #
 #     programs   : $GAUATMSEXE
 #
-#     fixed data : $FIXfv3/${CASE}/${CASE}_oro_data.tile*.nc
-#                  $FIXWGTS
-#                  $FIXam/global_hyblev.l65.txt
+#     fixed data : $FIXWGTS
 #
 #     input data : $COMOUT/RESTART/${PDY}.${cyc}0000.fv_core.res.tile*.nc
 #                  $COMOUT/RESTART/${PDY}.${cyc}0000.fv_tracer.res.tile*.nc
@@ -129,9 +123,7 @@ gfs_ver=${gfs_ver:-v15.0.0}
 BASEDIR=${BASEDIR:-${NWROOT:-/nwprod2}}
 HOMEgfs=${HOMEgfs:-$BASEDIR/gfs_ver.${gfs_ver}}
 EXECgfs=${EXECgfs:-$HOMEgfs/exec}
-FIXfv3=${FIXfv3:-$HOMEgfs/fix/fix_fv3_gmted2010}
-FIXam=${FIXam:-$HOMEgfs/fix/fix_am}
-FIXC2G=${FIXC2G:-$HOMEgfs/fix/fix_shield/gaus_N${res}.nc}
+FIXC2G=${FIXC2G:-$HOMEgfs/fix/shield/gaus_N${res}.nc}
 DATA=${DATA:-$(pwd)}
 
 #  Filenames.

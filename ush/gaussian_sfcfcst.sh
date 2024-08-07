@@ -28,9 +28,9 @@
 #     HOMEgfs       Directory for gfs version.  Default is
 #                   $BASEDIR/gfs_ver.v15.0.0}
 #     FIXam         Directory for the global fixed climatology files.
-#                   Defaults to $HOMEgfs/fix/fix_am
+#                   Defaults to $HOMEgfs/fix/am
 #     FIXfv3        Directory for the model grid and orography netcdf
-#                   files.  Defaults to $HOMEgfs/fix/fix_fv3_gmted2010
+#                   files.  Defaults to $HOMEgfs/fix/orog
 #     FIXWGTS       Weight file to use for interpolation
 #     EXECgfs       Directory of the program executable.  Defaults to
 #                   $HOMEgfs/exec
@@ -140,10 +140,10 @@ gfs_ver=${gfs_ver:-v15.0.0}
 BASEDIR=${BASEDIR:-${NWROOT:-/nwprod2}}
 HOMEgfs=${HOMEgfs:-$BASEDIR/gfs_ver.${gfs_ver}}
 EXECgfs=${EXECgfs:-$HOMEgfs/exec}
-FIXfv3=${FIXfv3:-$HOMEgfs/fix/fix_fv3_gmted2010}
-FIXam=${FIXam:-$HOMEgfs/fix/fix_am}
-FIXshield=${FIXshield:-$HOMEgfs/fix/fix_shield}
-FIXGAUS=${FIXGAUS:-$HOMEgfs/fix/fix_shield/gaus_N${res}.nc}
+FIXfv3=${FIXfv3:-$HOMEgfs/fix/orog}
+FIXam=${FIXam:-$HOMEgfs/fix/am}
+FIXshield=${FIXshield:-$HOMEgfs/fix/shield}
+FIXGAUS=${FIXGAUS:-$HOMEgfs/fix/shield/gaus_N${res}.nc}
 FIXWGTS=${FIXWGTS:-$FIXfv3/$CASE/fv3_SCRIP_${CASE}_GRIDSPEC_lon${LONB_SFC}_lat${LATB_SFC}.gaussian.neareststod.nc}
 FIXWGTS2=${FIXWGTS2:-$FIXfv3/$CASE/fv3_SCRIP_${CASE}_GRIDSPEC_lon${LONB_SFC}_lat${LATB_SFC}.gaussian.bilinear.nc}
 FIXELONELAT=${FIXELONELAT:-$FIXshield/c2g_weight_${CASE}.nc}
@@ -151,7 +151,7 @@ DATA=${DATA:-$(pwd)}
 
 #  Filenames.
 XC=${XC:-''}
-GAUSFCFCSTEXE=${GAUSFCFCSTEXE:-$EXECgfs/gaussian_sfcfcst.exe}
+GAUSFCFCSTEXE=${GAUSFCFCSTEXE:-$EXECgfs/gaussian_sfcfcst.x}
 SIGLEVEL=${SIGLEVEL:-$FIXam/global_hyblev.l${LEVS}.txt}
 
 CDATE=${CDATE:?}
