@@ -1,6 +1,8 @@
 help([[
-Build environment for GFS utilities on Hera
+Build environment for SHiELD utilities on Hera
 ]])
+
+whatis("Description: SHiELD utilities environment on Hera with Intel Compilers")
 
 prepend_path("MODULEPATH", "/scratch1/NCEPDEV/nems/role.epic/spack-stack/spack-stack-1.6.0/envs/gsi-addon-dev-rocky8/install/modulefiles/Core")
 
@@ -13,5 +15,3 @@ load(pathJoin("stack-intel-oneapi-mpi", stack_impi_ver))
 load(pathJoin("cmake", cmake_ver))
 
 load("shieldutils_common")
-
-whatis("Description: SHiELD utilities environment on Hera with Intel Compilers")
