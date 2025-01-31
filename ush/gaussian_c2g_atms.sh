@@ -173,7 +173,7 @@ mm=$(echo $CDATE | cut -c5-6)
 dd=$(echo $CDATE | cut -c7-8)
 hh=$(echo $CDATE | cut -c9-10)
 
-if [ $OUTPUT_FILE = "netcdf" ]; then
+if [ ${OUTPUT_FILE:-"netcdf"} = "netcdf" ]; then
    nemsio=".false."
 else
    nemsio=".true."
