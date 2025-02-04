@@ -67,7 +67,7 @@ if [[ $atminc = ".false." ]]; then
 fi
 
 if [[ $err == 0 && -s $memdir/ && $atminc = ".false." ]]; then
-   printf " completed fv3gfs fhour=%.*f %s" 3 $fhour $CDATE > $memdir/${APREFIX}.atm.logf$( printf "%03d" $fhour).txt
+   printf " completed fv3gfs fhour=%.*f %s" 3 $fhour $CDATE > $memdir/${APREFIX}atm.logf$( printf "%03d" $fhour).txt
 fi
 
 set +x
