@@ -20,20 +20,11 @@
 #   Imported Shell Variables:
 #     CASE          Model resolution.  Defaults to C768.
 #     DONST         Process NST fields when 'yes'.  Default is 'no'.
-#     OUTPUT_FILE   Output gaussian forecast file format.  Default is "nemsio"
-#                   Set to "netcdf" for netcdf output file
-#                   Otherwise, output in nemsio.
-#     BASEDIR       Root directory where all scripts and fixed files reside.
-#                   Default is /nwprod2.
 #     HOMEgfs       Directory for gfs version.  Default is
 #                   $BASEDIR/gfs_ver.v15.0.0}
 #     FIXam         Directory for the global fixed climatology files.
 #                   Defaults to $HOMEgfs/fix/am
-#     FIXfv3        Directory for the model grid and orography netcdf
-#                   files.  Defaults to $HOMEgfs/fix/orog
 #     FIXWGTS       Weight file to use for interpolation
-#     EXECgfs       Directory of the program executable.  Defaults to
-#                   $HOMEgfs/exec
 #     DATA          Working directory
 #                   (if nonexistent will be made, used and deleted)
 #                   Defaults to current working directory
@@ -45,8 +36,6 @@
 #                   Defaults to $EXECgfs/gaussian_sfcfcst.exe
 #     INISCRIPT     Preprocessing script.  Defaults to none.
 #     LOGSCRIPT     Log posting script.  Defaults to none.
-#     ERRSCRIPT     Error processing script
-#                   defaults to 'eval [[ $err = 0 ]]'
 #     ENDSCRIPT     Postprocessing script
 #                   defaults to none
 #     CDATE         Output forecast date in yyyymmddhh format. Required.
@@ -78,16 +67,15 @@
 #   Modules and files referenced:
 #     scripts    : $INISCRIPT
 #                  $LOGSCRIPT
-#                  $ERRSCRIPT
 #                  $ENDSCRIPT
 #
 #     programs   : $GAUSFCFCSTEXE
 #
-#     fixed data : $FIXfv3/${CASE}/${CASE}_oro_data.tile*.nc
-#                  $FIXWGTS
-#                  $FIXam/global_hyblev.l65.txt
+#     fixed data : ${FIXorog}/${CASE}/${CASE}.mx${OCNRES}_oro_data.tile*.nc
+#                  ${FIXWGTS}
+#                  ${FIXgfs}/am/global_hyblev.l65.txt
 #
-#     input data : $COMOUT/RESTART/${PDY}.${cyc}0000.sfcf*_data.tile*.nc
+#     input data : ${COMIN_ATMOS_RESTART}/${PDY}.${cyc}0000.sfcanl_data.tile*.nc
 #
 #     output data: $PGMOUT
 #                  $PGMERR
@@ -110,8 +98,6 @@
 #
 ################################################################################
 
-source "$HOMEgfs/ush/preamble.sh"
-
 VERBOSE=${VERBOSE:-"NO"}
 if [[ "$VERBOSE" = "YES" ]] ; then
    echo $(date) EXECUTING $0 $* >&2
@@ -128,25 +114,9 @@ LATB_SFC=${LATB_SFC:-$LATB_CASE}
 DONST=${DONST:-"NO"}
 SFC4POST=${SFC4POST:-".true"}
 LEVS=${LEVS:-91}
-OUTPUT_FILE=${OUTPUT_FILE:-"netcdf"}
-if [ $OUTPUT_FILE = "netcdf" ]; then
-    export NETCDF_OUT=".true."
-else
-    export NETCDF_OUT=".false."
-fi
-
-#  Directories.
-gfs_ver=${gfs_ver:-v15.0.0}
-BASEDIR=${BASEDIR:-${NWROOT:-/nwprod2}}
-HOMEgfs=${HOMEgfs:-$BASEDIR/gfs_ver.${gfs_ver}}
-EXECgfs=${EXECgfs:-$HOMEgfs/exec}
-FIXfv3=${FIXfv3:-$HOMEgfs/fix/orog}
-FIXam=${FIXam:-$HOMEgfs/fix/am}
-FIXshield=${FIXshield:-$HOMEgfs/fix/shield}
-FIXGAUS=${FIXGAUS:-$HOMEgfs/fix/shield/gaus_N${res}.nc}
-FIXWGTS=${FIXWGTS:-$FIXfv3/$CASE/fv3_SCRIP_${CASE}_GRIDSPEC_lon${LONB_SFC}_lat${LATB_SFC}.gaussian.neareststod.nc}
-FIXWGTS2=${FIXWGTS2:-$FIXfv3/$CASE/fv3_SCRIP_${CASE}_GRIDSPEC_lon${LONB_SFC}_lat${LATB_SFC}.gaussian.bilinear.nc}
-FIXELONELAT=${FIXELONELAT:-$FIXshield/c2g_weight_${CASE}.nc}
+LEVSP1=$(($LEVS+1))
+FIXWGTS=${FIXWGTS:-${FIXorog}/${CASE}/fv3_SCRIP_${CASE}_GRIDSPEC_lon${LONB_SFC}_lat${LATB_SFC}.gaussian.neareststod.nc}
+FIXWGTS2=${FIXWGTS2:-${FIXorog}/${CASE}/fv3_SCRIP_${CASE}_GRIDSPEC_lon${LONB_SFC}_lat${LATB_SFC}.gaussian.bilinear.nc}
 DATA=${DATA:-$(pwd)}
 
 #  Filenames.
@@ -166,15 +136,9 @@ export REDERR=${REDERR:-'2>'}
 # Set defaults
 ################################################################################
 #  Preprocessing
+${INISCRIPT:-}
 pwd=$(pwd)
-if [[ -d $DATA ]]
-then
-   mkdata=NO
-else
-   mkdir -p $DATA
-   mkdata=YES
-fi
-cd $DATA||exit 99
+cd "${DATA}" || exit 99
 mkdir -p gaussian_sfcf$( printf "%03d" $fhour)
 cd gaussian_sfcf$( printf "%03d" $fhour)
 
@@ -184,30 +148,29 @@ export PGM=$GAUSFCFCSTEXE
 export pgm=$PGM
 $LOGSCRIPT
 
-PDY=$(echo $CDATE | cut -c1-8)
-cyc=$(echo $CDATE | cut -c9-10)
-iy=$(echo $CDATE | cut -c1-4)
-im=$(echo $CDATE | cut -c5-6)
-id=$(echo $CDATE | cut -c7-8)
-ih=$(echo $CDATE | cut -c9-10)
+iy=${PDY:0:4}
+im=${PDY:4:2}
+id=${PDY:6:2}
+ih=${cyc}
+orogfix=${orogfix:-"${CASE}.mx${OCNRES}"}
 
 export OMP_NUM_THREADS=${OMP_NUM_THREADS_SFC:-1}
 
 # input interpolation weights
-$NLN $FIXWGTS ./weights.nc
-$NLN $FIXWGTS2 ./weightb.nc
-$NLN $FIXGAUS  ./gaus_N${res}.nc
-$NLN $FIXELONELAT ./c2g_weight_${CASE}.nc
+${NLN} "${FIXWGTS}" "./weights.nc"
+${NLN} "${FIXWGTS2}" "./weightb.nc"
+${NLN} "${FIXshield}/gaus_N${res}.nc" "./gaus_N${res}.nc"
+${NLN} "${FIXshield}/c2g_weight_${CASE}.nc" "./c2g_weight_${CASE}.nc"
 
 # input orography tiles
-$NLN $FIXfv3/$CASE/${CASE}_oro_data.tile1.nc   ./orog.tile1.nc
-$NLN $FIXfv3/$CASE/${CASE}_oro_data.tile2.nc   ./orog.tile2.nc
-$NLN $FIXfv3/$CASE/${CASE}_oro_data.tile3.nc   ./orog.tile3.nc
-$NLN $FIXfv3/$CASE/${CASE}_oro_data.tile4.nc   ./orog.tile4.nc
-$NLN $FIXfv3/$CASE/${CASE}_oro_data.tile5.nc   ./orog.tile5.nc
-$NLN $FIXfv3/$CASE/${CASE}_oro_data.tile6.nc   ./orog.tile6.nc
+${NLN} "${FIXorog}/${CASE}/${orogfix}_oro_data.tile1.nc" "./orog.tile1.nc"
+${NLN} "${FIXorog}/${CASE}/${orogfix}_oro_data.tile2.nc" "./orog.tile2.nc"
+${NLN} "${FIXorog}/${CASE}/${orogfix}_oro_data.tile3.nc" "./orog.tile3.nc"
+${NLN} "${FIXorog}/${CASE}/${orogfix}_oro_data.tile4.nc" "./orog.tile4.nc"
+${NLN} "${FIXorog}/${CASE}/${orogfix}_oro_data.tile5.nc" "./orog.tile5.nc"
+${NLN} "${FIXorog}/${CASE}/${orogfix}_oro_data.tile6.nc" "./orog.tile6.nc"
 
-$NLN $SIGLEVEL                                 ./vcoord.txt
+${NLN} "${SIGLEVEL}" "./vcoord.txt"
 
 RSTR=${RSTR:-"3"}
 RINTV=${RINTV:-"1"}
@@ -217,75 +180,72 @@ rPDY=$(echo $RDATE | cut -c1-8)
 rcyc=$(echo $RDATE | cut -c9-10)
 # input forecast tiles (with nst records)
 if [[ $RHR -ne $REND ]] ; then
-   list1=`ls -C1 $DATA/RESTART/${rPDY}.${rcyc}0*.sfc_data.tile*.nc`
+   list1=`ls -C1 ${DATA}/RESTART/${rPDY}.${rcyc}0*.sfc_data.tile*.nc`
    for file in $list1; do
-       $NLN $file ./fcst${file#$DATA/RESTART/${rPDY}.${rcyc}0*.sfc_data}
+       ${NLN} $file ./fcst${file#${DATA}/RESTART/${rPDY}.${rcyc}0*.sfc_data}
    done
 else
-   $NLN $DATA/RESTART/sfc_data.tile1.nc   ./fcst.tile1.nc
-   $NLN $DATA/RESTART/sfc_data.tile2.nc   ./fcst.tile2.nc
-   $NLN $DATA/RESTART/sfc_data.tile3.nc   ./fcst.tile3.nc
-   $NLN $DATA/RESTART/sfc_data.tile4.nc   ./fcst.tile4.nc
-   $NLN $DATA/RESTART/sfc_data.tile5.nc   ./fcst.tile5.nc
-   $NLN $DATA/RESTART/sfc_data.tile6.nc   ./fcst.tile6.nc
+   ${NLN} ${DATA}/RESTART/sfc_data.tile1.nc   ./fcst.tile1.nc
+   ${NLN} ${DATA}/RESTART/sfc_data.tile2.nc   ./fcst.tile2.nc
+   ${NLN} ${DATA}/RESTART/sfc_data.tile3.nc   ./fcst.tile3.nc
+   ${NLN} ${DATA}/RESTART/sfc_data.tile4.nc   ./fcst.tile4.nc
+   ${NLN} ${DATA}/RESTART/sfc_data.tile5.nc   ./fcst.tile5.nc
+   ${NLN} ${DATA}/RESTART/sfc_data.tile6.nc   ./fcst.tile6.nc
 fi
 
 if [[ $RHR -eq 0 ]]; then
-   $NLN $DATA/gfs_surface_ic*.tile1.nc   ./gfs_surface.tile1.nc
-   $NLN $DATA/gfs_surface_ic*.tile2.nc   ./gfs_surface.tile2.nc
-   $NLN $DATA/gfs_surface_ic*.tile3.nc   ./gfs_surface.tile3.nc
-   $NLN $DATA/gfs_surface_ic*.tile4.nc   ./gfs_surface.tile4.nc
-   $NLN $DATA/gfs_surface_ic*.tile5.nc   ./gfs_surface.tile5.nc
-   $NLN $DATA/gfs_surface_ic*.tile6.nc   ./gfs_surface.tile6.nc
+   ${NLN} ${DATA}/gfs_surface_ic*.tile1.nc   ./gfs_surface.tile1.nc
+   ${NLN} ${DATA}/gfs_surface_ic*.tile2.nc   ./gfs_surface.tile2.nc
+   ${NLN} ${DATA}/gfs_surface_ic*.tile3.nc   ./gfs_surface.tile3.nc
+   ${NLN} ${DATA}/gfs_surface_ic*.tile4.nc   ./gfs_surface.tile4.nc
+   ${NLN} ${DATA}/gfs_surface_ic*.tile5.nc   ./gfs_surface.tile5.nc
+   ${NLN} ${DATA}/gfs_surface_ic*.tile6.nc   ./gfs_surface.tile6.nc
 else
-   $NLN $DATA/gfs_surface.tile1.nc       ./gfs_surface.tile1.nc
-   $NLN $DATA/gfs_surface.tile2.nc       ./gfs_surface.tile2.nc
-   $NLN $DATA/gfs_surface.tile3.nc       ./gfs_surface.tile3.nc
-   $NLN $DATA/gfs_surface.tile4.nc       ./gfs_surface.tile4.nc
-   $NLN $DATA/gfs_surface.tile5.nc       ./gfs_surface.tile5.nc
-   $NLN $DATA/gfs_surface.tile6.nc       ./gfs_surface.tile6.nc
+   ${NLN} ${DATA}/gfs_surface.tile1.nc       ./gfs_surface.tile1.nc
+   ${NLN} ${DATA}/gfs_surface.tile2.nc       ./gfs_surface.tile2.nc
+   ${NLN} ${DATA}/gfs_surface.tile3.nc       ./gfs_surface.tile3.nc
+   ${NLN} ${DATA}/gfs_surface.tile4.nc       ./gfs_surface.tile4.nc
+   ${NLN} ${DATA}/gfs_surface.tile5.nc       ./gfs_surface.tile5.nc
+   ${NLN} ${DATA}/gfs_surface.tile6.nc       ./gfs_surface.tile6.nc
 fi
-
-riy=$(echo $RDATE | cut -c1-4)
-rim=$(echo $RDATE | cut -c5-6)
-rid=$(echo $RDATE | cut -c7-8)
-rih=$(echo $RDATE | cut -c9-10)
 
 # Namelist uses booleans now
 if [[ ${DONST} == "YES" ]]; then do_nst='.true.'; else do_nst='.false.'; fi
 
 # Executable namelist
 cat <<EOF > fort.41
-    &setup
-     yy=$iy,
-     mm=$im,
-     dd=$id,
-     hh=$ih,
-     fhr=$fhour,
-     diag_fhr=$diag_fhr,
-     igaus=$LONB_SFC,
-     jgaus=$LATB_SFC,
-     gaus_file="gaus_N${res}"
-     netcdf_out=$NETCDF_OUT
-     fhzero=$FHZER
-     imp_physics=11
-     dtp=$DELTIM 
-     donst=${do_nst}
-     sfc4post=$SFC4POST
-    /
+ &setup
+  yy=${iy},
+  mm=${im},
+  dd=${id},
+  hh=${ih},
+  fhr=${fhour},
+  diag_fhr=${diag_fhr},
+  igaus=${LONB_SFC},
+  jgaus=${LATB_SFC},
+  gaus_file="gaus_N${res}"
+  netcdf_out=.true.
+  fhzero=${FHZERO}
+  imp_physics=11
+  dtp=${DELTIM} 
+  donst=${do_nst}
+  sfc4post=${SFC4POST}
+ /
 EOF
 
 # output gaussian global surface forecast files
-$NLN $memdir/${APREFIX}sfcf$( printf "%03d" $fhour)${ASUFFIX} ./sfc.gaussian.nc
+${NLN} ${memdir}/${APREFIX}sfcf$( printf "%03d" $fhour)${ASUFFIX} ./sfc.gaussian.nc
 
-eval $GAUSFCFCSTEXE >> $DATA/logf$( printf "%03d" $fhour)
-export ERR=$?
-export err=$ERR
-$ERRSCRIPT||exit 2
+eval ${GAUSFCFCSTEXE} >> ${DATA}/logf$( printf "%03d" $fhour)
+
+export err=$?
+if [[ ${err} -ne 0 ]]; then
+   echo "FATAL ERROR: ${GAUSFCFCSTEXE} returned non-zero exit status!"
+   exit "${err}"
+fi
 
 ################################################################################
 #  Postprocessing
-cd $pwd
-[[ $mkdata = YES ]]&&rmdir $DATA
+cd "${pwd}"
 
-exit $err
+exit 0

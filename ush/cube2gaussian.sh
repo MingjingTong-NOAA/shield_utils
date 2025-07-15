@@ -40,15 +40,14 @@ else
   AFHR=f$( printf "%03d" $fhour)
 fi
 
-$NLN $memdir/${APREFIX}log${AFHR}_c2g $DATA/log${AFHR}
+$NLN ${memdir}/${APREFIX}log${AFHR}_c2g $DATA/log${AFHR}
 
 GAUSSIANATMSSH=${GAUSSIANATMSSH:-$HOMEgfs/ush/gaussian_c2g_atms.sh}
 
 $GAUSSIANATMSSH
 
-ls $memdir/${APREFIX}atm${AFHR}${ASUFFIX} > /dev/null 2>&1
+ls ${memdir}/${APREFIX}atm${AFHR}${ASUFFIX} > /dev/null 2>&1
 export err=$?
-$ERRSCRIPT||exit 2
 
 auxfhr=_auxfhr
 
@@ -63,7 +62,6 @@ if [[ $atminc = ".false." ]]; then
   
   ls $memdir/${APREFIX}sfcf$( printf "%03d" $fhour)${ASUFFIX} > /dev/null 2>&1
   export err=$?
-  $ERRSCRIPT||exit 2
 fi
 
 if [[ $err == 0 && -s $memdir/ && $atminc = ".false." ]]; then
