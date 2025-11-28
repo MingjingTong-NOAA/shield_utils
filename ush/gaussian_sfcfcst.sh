@@ -79,7 +79,7 @@
 #
 #     output data: $PGMOUT
 #                  $PGMERR
-#                  $COMOUT/${APREFIX}sfcf${ASUFFIX}
+#                  $COMOUT/${APREFIX}sfc.f${ASUFFIX}
 #
 # Remarks:
 #
@@ -234,7 +234,7 @@ cat <<EOF > fort.41
 EOF
 
 # output gaussian global surface forecast files
-${NLN} ${memdir}/${APREFIX}sfcf$( printf "%03d" $fhour)${ASUFFIX} ./sfc.gaussian.nc
+${NLN} ${memdir}/${APREFIX}sfc.f$( printf "%03d" $fhour)${ASUFFIX} ./sfc.gaussian.nc
 
 eval ${GAUSFCFCSTEXE} >> ${DATA}/logf$( printf "%03d" $fhour)
 

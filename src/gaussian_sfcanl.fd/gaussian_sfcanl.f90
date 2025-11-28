@@ -40,8 +40,7 @@
 
  integer, parameter :: num_tiles = 6
 
- integer :: itile, jtile, igaus, jgaus
- real :: fhr
+ integer :: itile, jtile, igaus, jgaus, imp_physics, landsfcmdl
 
  integer :: idate(8)
 
@@ -103,7 +102,6 @@
  end type sfc_data
  
  type(sfc_data) :: tile_data, gaussian_data
-
  end module io
 
 !------------------------------------------------------------------------------
@@ -124,15 +122,19 @@
  integer                 :: yy, mm, dd, hh
  integer, allocatable    :: col(:), row(:), col2(:), row2(:)
 
+ real, parameter           :: fill = 0.0
  real(kind=8), allocatable :: s(:), s2(:)
 
- namelist /setup/ yy, mm, dd, hh, fhr, igaus, jgaus, donst
+ logical                   :: add_soil_inc = .false.
+ integer                   :: lsoil_incr = 2
+ character(len=512)        :: sfc_inc_file = "./sfc_inc"
+
+ namelist /setup/ yy, mm, dd, hh, igaus, jgaus, donst, imp_physics, landsfcmdl, add_soil_inc, lsoil_incr, sfc_inc_file
 
  call w3tagb('GAUSSIAN_SFCANL',2018,0179,0055,'NP20')
 
  print*,"- BEGIN EXECUTION"
 
- fhr = 0.
  donst = .false.
 
  print*
@@ -144,6 +146,9 @@
    call errexit(56)
  endif
  close (41)
+ 
+ ! print namelist
+ write(6, nml=setup)
 
  idate = 0
  idate(1) = yy
@@ -231,104 +236,122 @@
 
  call read_data_anl
 
+ ! Read and add soil increments to sfcanl if settings require it 
+ if (add_soil_inc) call add_soil_increments(sfc_inc_file, lsoil_incr)
+
 !------------------------------------------------------------------------------
 ! Interpolate tiled data to gaussian grid.
 !------------------------------------------------------------------------------
 
  allocate(gaussian_data%orog(igaus*jgaus))    ! sfc
+ gaussian_data%orog = fill
  allocate(gaussian_data%t2m(igaus*jgaus))
+ gaussian_data%t2m = fill
  allocate(gaussian_data%tisfc(igaus*jgaus))
+ gaussian_data%tisfc = fill
  allocate(gaussian_data%q2m(igaus*jgaus))
+ gaussian_data%q2m = fill
  allocate(gaussian_data%stype(igaus*jgaus))
+ gaussian_data%stype = fill
  allocate(gaussian_data%snwdph(igaus*jgaus))
+ gaussian_data%snwdph = fill
  allocate(gaussian_data%slope(igaus*jgaus))
+ gaussian_data%slope = fill
  allocate(gaussian_data%shdmax(igaus*jgaus))
+ gaussian_data%shdmax = fill
  allocate(gaussian_data%shdmin(igaus*jgaus))
+ gaussian_data%shdmin = fill
  allocate(gaussian_data%snoalb(igaus*jgaus))
+ gaussian_data%snoalb = fill
  allocate(gaussian_data%slmask(igaus*jgaus))
+ gaussian_data%slmask = fill
  allocate(gaussian_data%tg3(igaus*jgaus))
+ gaussian_data%tg3 = fill
  allocate(gaussian_data%alvsf(igaus*jgaus))
+ gaussian_data%alvsf = fill
  allocate(gaussian_data%alvwf(igaus*jgaus))
+ gaussian_data%alvwf = fill
  allocate(gaussian_data%alnsf(igaus*jgaus))
+ gaussian_data%alnsf = fill
  allocate(gaussian_data%alnwf(igaus*jgaus))
+ gaussian_data%alnwf = fill
  allocate(gaussian_data%facsf(igaus*jgaus))
+ gaussian_data%facsf = fill
  allocate(gaussian_data%facwf(igaus*jgaus))
+ gaussian_data%facwf = fill
  allocate(gaussian_data%ffhh(igaus*jgaus))
+ gaussian_data%ffhh = fill
  allocate(gaussian_data%ffmm(igaus*jgaus))
+ gaussian_data%ffmm = fill
  allocate(gaussian_data%sheleg(igaus*jgaus))
+ gaussian_data%sheleg = fill
  allocate(gaussian_data%canopy(igaus*jgaus))
+ gaussian_data%canopy = fill
  allocate(gaussian_data%vfrac(igaus*jgaus))
+ gaussian_data%vfrac = fill
  allocate(gaussian_data%vtype(igaus*jgaus))
+ gaussian_data%vtype = fill
  allocate(gaussian_data%zorl(igaus*jgaus))
+ gaussian_data%zorl = fill
  allocate(gaussian_data%tsea(igaus*jgaus))
+ gaussian_data%tsea = fill
  allocate(gaussian_data%f10m(igaus*jgaus))
+ gaussian_data%f10m = fill
  allocate(gaussian_data%tprcp(igaus*jgaus))
+ gaussian_data%tprcp = fill
  allocate(gaussian_data%uustar(igaus*jgaus))
+ gaussian_data%uustar = fill
  allocate(gaussian_data%fice(igaus*jgaus))
+ gaussian_data%fice = fill
  allocate(gaussian_data%hice(igaus*jgaus))
+ gaussian_data%hice = fill
  allocate(gaussian_data%srflag(igaus*jgaus))
+ gaussian_data%srflag = fill
  allocate(gaussian_data%slc(igaus*jgaus,4))
+ gaussian_data%slc = fill
  allocate(gaussian_data%smc(igaus*jgaus,4))
+ gaussian_data%smc = fill
  allocate(gaussian_data%stc(igaus*jgaus,4))
+ gaussian_data%stc = fill
 
  if (donst) then
    allocate(gaussian_data%c0(igaus*jgaus))  ! nst
+   gaussian_data%c0 = fill
    allocate(gaussian_data%cd(igaus*jgaus))  
+   gaussian_data%cd = fill
    allocate(gaussian_data%dconv(igaus*jgaus))  
+   gaussian_data%dconv = fill
    allocate(gaussian_data%dtcool(igaus*jgaus)) 
+   gaussian_data%dtcool = fill
    allocate(gaussian_data%land(igaus*jgaus)) 
+   gaussian_data%land = fill
    allocate(gaussian_data%qrain(igaus*jgaus)) 
+   gaussian_data%qrain = fill
    allocate(gaussian_data%tref(igaus*jgaus)) 
+   gaussian_data%tref = fill
    allocate(gaussian_data%w0(igaus*jgaus)) 
+   gaussian_data%w0 = fill
    allocate(gaussian_data%wd(igaus*jgaus)) 
+   gaussian_data%wd = fill
    allocate(gaussian_data%xs(igaus*jgaus)) 
+   gaussian_data%xs = fill
    allocate(gaussian_data%xt(igaus*jgaus)) 
+   gaussian_data%xt = fill
    allocate(gaussian_data%xtts(igaus*jgaus)) 
+   gaussian_data%xtts = fill
    allocate(gaussian_data%xu(igaus*jgaus)) 
+   gaussian_data%xu = fill
    allocate(gaussian_data%xv(igaus*jgaus)) 
+   gaussian_data%xv = fill
    allocate(gaussian_data%xz(igaus*jgaus)) 
+   gaussian_data%xz = fill
    allocate(gaussian_data%xzts(igaus*jgaus)) 
+   gaussian_data%xzts = fill
    allocate(gaussian_data%zc(igaus*jgaus)) 
+   gaussian_data%zc = fill
  endif
 
- gaussian_data%orog=0.0 
- gaussian_data%t2m=0.0
- gaussian_data%tisfc=0.0
- gaussian_data%q2m=0.0
- gaussian_data%stype=0.0
- gaussian_data%snwdph=0.0
- gaussian_data%slope=0.0
- gaussian_data%shdmax=0.0
- gaussian_data%shdmin=0.0
- gaussian_data%snoalb=0.0
- gaussian_data%slmask=0.0
- gaussian_data%tg3=0.0
- gaussian_data%alvsf=0.0
- gaussian_data%alvwf=0.0
- gaussian_data%alnsf=0.0
- gaussian_data%alnwf=0.0
- gaussian_data%facsf=0.0
- gaussian_data%facwf=0.0
- gaussian_data%ffhh=0.0
- gaussian_data%ffmm=0.0
- gaussian_data%sheleg=0.0
- gaussian_data%canopy=0.0
- gaussian_data%vfrac=0.0
- gaussian_data%vtype=0.0
- gaussian_data%zorl=0.0
- gaussian_data%tsea=0.0
- gaussian_data%f10m=0.0
- gaussian_data%tprcp=0.0
- gaussian_data%uustar=0.0
- gaussian_data%fice=0.0
- gaussian_data%hice=0.0
- gaussian_data%srflag=0.0
- gaussian_data%slc=0.0
- gaussian_data%smc=0.0
- gaussian_data%stc=0.0
-
  do i = 1, n_s2
-!   gaussian_data%orog(row2(i))   = gaussian_data%orog(row2(i)) + s2(i)*tile_data%orog(col2(i))
    gaussian_data%t2m(row2(i))    = gaussian_data%t2m(row2(i)) + s2(i)*tile_data%t2m(col2(i))
    gaussian_data%q2m(row2(i))    = gaussian_data%q2m(row2(i)) + s2(i)*tile_data%q2m(col2(i))
  enddo
@@ -390,6 +413,30 @@
      gaussian_data%stc(row(i),n) = gaussian_data%stc(row(i),n) + s(i)*tile_data%stc(col(i),n)
    enddo
  enddo
+
+! When UFS uses the CICE seaice component, the ice temperatures (stored in the
+!  stc variable) are set to constant values (either 200K or 271.2K). This causes
+!  issues for downstream models using these ice temperatures.
+! The following block assigns an interpolated temperature calculated from CICE
+!  ice surface temperature and the fixed ice lower boundary temperature (271.2) 
+!  to grids with the following:
+!    - ice thickness > 0 or land mask /= 1  (not equal to land)
+!    - constant temperature of 200K or 271.2K in both ice layers
+
+ do i = 1, igaus*jgaus
+   if((gaussian_data%hice(i)  > 0.0 .or. gaussian_data%slmask(i) /= 1.0)          .and. &
+      ((gaussian_data%stc(i,1) > 199.999 .and. gaussian_data%stc(i,1) < 200.001)  .or.  &
+       (gaussian_data%stc(i,1) > 271.199 .and. gaussian_data%stc(i,1) < 271.201)) .and. &
+      gaussian_data%stc(i,1) == gaussian_data%stc(i,2)) then
+
+     gaussian_data%tsea(i)  = min(gaussian_data%tisfc(i),273.15)
+     gaussian_data%stc(i,1) = 0.75 * gaussian_data%tsea(i) + 0.25 * 271.2
+     gaussian_data%stc(i,2) = 0.25 * gaussian_data%tsea(i) + 0.75 * 271.2
+     gaussian_data%stc(i,3) = gaussian_data%stc(i,2)
+     gaussian_data%stc(i,4) = gaussian_data%stc(i,2)
+
+   end if
+ end do
 
  deallocate(col, row, s)
  deallocate(col2, row2, s2)
@@ -526,6 +573,7 @@
 
  use netcdf
  use io
+ use sp_mod, only: splat
 
  implicit none
 
@@ -772,9 +820,6 @@
 
 ! global attributes
 
- error = nf90_put_att(ncid, nf90_global, 'ncld', 5)
- call netcdf_err(error, 'DEFINING NCLD ATTRIBUTE')
-
  error = nf90_put_att(ncid, nf90_global, 'nsoil', 4)
  call netcdf_err(error, 'DEFINING NSOIL ATTRIBUTE')
 
@@ -789,6 +834,12 @@
 
  error = nf90_put_att(ncid, nf90_global, 'jm', jgaus)
  call netcdf_err(error, 'DEFINING JM ATTRIBUTE')
+
+ error = nf90_put_att(ncid, nf90_global, 'imp_physics', imp_physics)
+ call netcdf_err(error, 'DEFINING IMP_PHYSICS ATTRIBUTE')
+
+ error = nf90_put_att(ncid, nf90_global, 'landsfcmdl', landsfcmdl)
+ call netcdf_err(error, 'DEFINING LANDSFCMDL ATTRIBUTE')
 
 ! variables
 
@@ -965,7 +1016,7 @@
  error = nf90_put_var(ncid, id_lat, dummy)
  call netcdf_err(error, 'WRITING LAT')
 
- error = nf90_put_var(ncid, id_time, fhr)
+ error = nf90_put_var(ncid, id_time, 0)
  call netcdf_err(error, 'WRITING TIME')
 
  do n = 1, num_vars
@@ -1062,24 +1113,16 @@
      dummy = reshape(gaussian_data%vtype, (/igaus,jgaus/))
    case ('soill1')
      dummy = reshape(gaussian_data%slc(:,1), (/igaus,jgaus/))
-     if(fhr == 0.) then
-        where (dummy > 0.99) dummy = 0.0  ! replace flag value at water/landice
-     endif
+     where (dummy > 0.99) dummy = 0.0  ! replace flag value at water/landice
    case ('soill2')
      dummy = reshape(gaussian_data%slc(:,2), (/igaus,jgaus/))
-     if(fhr == 0.) then
-        where (dummy > 0.99) dummy = 0.0  ! replace flag value at water/landice
-     endif
+     where (dummy > 0.99) dummy = 0.0  ! replace flag value at water/landice
    case ('soill3')
      dummy = reshape(gaussian_data%slc(:,3), (/igaus,jgaus/))
-     if(fhr == 0.) then
-        where (dummy > 0.99) dummy = 0.0  ! replace flag value at water/landice
-     endif
+     where (dummy > 0.99) dummy = 0.0  ! replace flag value at water/landice
    case ('soill4')
      dummy = reshape(gaussian_data%slc(:,4), (/igaus,jgaus/))
-     if(fhr == 0.) then
-        where (dummy > 0.99) dummy = 0.0  ! replace flag value at water/landice
-     endif
+     where (dummy > 0.99) dummy = 0.0  ! replace flag value at water/landice
    case ('soilt1')
      dummy = reshape(gaussian_data%stc(:,1), (/igaus,jgaus/))
    case ('soilt2')
@@ -1615,18 +1658,10 @@
 
    call netcdf_err(error, 'OPENING FILE' )
 
-   if (fhr > 0.) then
-      ! use filtered orog
-      error=nf90_inq_varid(ncid, "orog_filt", id_var)
-      call netcdf_err(error, 'READING orog_filt ID' )
-      error=nf90_get_var(ncid, id_var, dummy)
-      call netcdf_err(error, 'READING orog_filt' )
-   else
-      error=nf90_inq_varid(ncid, "orog_raw", id_var)
-      call netcdf_err(error, 'READING orog_raw ID' )
-      error=nf90_get_var(ncid, id_var, dummy)
-      call netcdf_err(error, 'READING orog_raw' )
-   endif
+   error=nf90_inq_varid(ncid, "orog_raw", id_var)
+   call netcdf_err(error, 'READING orog_raw ID' )
+   error=nf90_get_var(ncid, id_var, dummy)
+   call netcdf_err(error, 'READING orog_raw' )
    print*,'- OROG: ',maxval(dummy),minval(dummy)
    tile_data%orog(istart:iend) = reshape(dummy, (/ijtile/))
 
@@ -1638,7 +1673,203 @@
 
  end subroutine read_data_anl
 
-!-------------------------------------------------------------------------------------------
+ subroutine read_soil_increments(sfc_inc_file, num_tiles, nk, nx, ny, stc_inc, slc_inc)
+   
+   use netcdf
+
+   implicit none
+
+   character(len=*), intent(in) :: sfc_inc_file
+   integer, intent(in)          :: num_tiles, ny, nx, nk  ! nk number of soil layer with increment
+   real, intent(out)            :: stc_inc(num_tiles, nk, nx, ny), slc_inc(num_tiles, nk, nx, ny)
+   
+   integer  :: i, it
+   logical  :: exists
+   integer  :: ncid, status, varid, dimid, dimlen
+   character(len=500)  :: fname
+   character(len=2)    :: tile_str
+
+   character(len=32), dimension(4) :: stc_vars = [character(len=32) :: 'soilt1_inc', 'soilt2_inc', 'soilt3_inc', 'soilt4_inc']
+   character(len=32), dimension(4) :: slc_vars = [character(len=32) :: 'slc1_inc', 'slc2_inc', 'slc3_inc', 'slc4_inc']
+ 
+   print*, "start reading soil increments"
+
+   if (nk > 4) then 
+        print*, 'Error in gaussian_sfcanl read soil increments: the requested number of soil layers ', nk, ' is larger than 4'
+        call errexit(-1)
+   endif
+
+   do it=1, num_tiles
+     write(tile_str, '(I0)') it
+     fname = trim(sfc_inc_file)//".tile"//trim(tile_str)//".nc"
+     inquire (file=trim(fname), exist=exists)
+     if (exists) then
+        status = nf90_open(trim(fname), NF90_NOWRITE, ncid)  ! open the file
+        call netcdf_err(status, ' opening file '//trim(fname))
+     else
+        print*, 'Error in gaussian_sfcanl, soil inc files do not exist: '//trim(fname)
+        call errexit(-1)
+     endif
+  
+     ! var stored as soilt1_inc(yaxis_1, xaxis_1)
+     status = nf90_inq_dimid(ncid, "yaxis_1", dimid)
+     CALL netcdf_err(status, 'reading dim yaxis_1 from '//trim(fname))
+     status = nf90_inquire_dimension(ncid, dimid, len = dimlen)
+     CALL netcdf_err(status, 'reading dim length yaxis_1 from '//trim(fname))
+     if (ny /= dimlen) then
+        print*, 'Error in gaussian_sfcanl, increment and forecast dimensions do not match'
+        call errexit(-1)
+     endif
+  
+     do i = 1, nk
+        status = nf90_inq_varid(ncid, trim(stc_vars(i)), varid)
+        CALL netcdf_err(status, 'reading varid for '//trim(stc_vars(i)))
+        status = nf90_get_var(ncid, varid, stc_inc(it, i,:,:), start = (/1, 1/), count = (/nx, ny/))
+        call netcdf_err(status, 'reading values for '//trim(stc_vars(i)))
+  
+        status = nf90_inq_varid(ncid, trim(slc_vars(i)), varid)
+        CALL netcdf_err(status, 'reading varid for '//trim(slc_vars(i)))
+        status = nf90_get_var(ncid, varid, slc_inc(it, i,:,:), start = (/1, 1/), count = (/nx, ny/))
+        call netcdf_err(status, 'reading values for '//trim(slc_vars(i)))
+     enddo
+     
+     status = nf90_close(ncid)
+     call netcdf_err(status, 'closing file '//trim(fname))
+
+   enddo
+   !set too small increments to zero
+   where(abs(stc_inc) < 0.0001) stc_inc = 0.0
+   where(abs(slc_inc) < 0.000001) slc_inc = 0.0
+ 
+   print*, "done reading soil increments"
+
+ end subroutine read_soil_increments
+
+!> @brief Noah-MP related parameters extracted from noahmp_table.f
+!> soil type STATSGO and vegetation type IGBP assumed 
+!! @param[out] maxsmc Maximum soil moisture for each soil type
+!! @param[out] bb B exponent for each soil type
+!! @param[out] satpsi Saturated matric potential for each soil type
+!> copied from https://github.com/ufs-community/UFS_UTILS/sorc/lsm_routines.fd/noah.fd/set_soilveg_snippet.f90
+!> @authors Yuan Xue and Clara Draper
+!!
+ subroutine set_soilveg_noahmp(maxsmc, bb, satpsi)
+
+   implicit none
+  
+   real, dimension(30), intent(out)  :: maxsmc, bb, satpsi
+    
+     ! set soil-dependent params (STATSGO is the only option for UFS, 07/13/2023)
+     maxsmc= (/0.339, 0.421, 0.434, 0.476, 0.484,&
+       &   0.439, 0.404, 0.464, 0.465, 0.406, 0.468, 0.468,                    &
+       &   0.439, 1.000, 0.200, 0.421, 0.468, 0.200,                           &
+       &   0.339, 0.339, 0.000, 0.000, 0.000, 0.000,                           &
+       &  0.000, 0.000, 0.000, 0.000, 0.000, 0.000/)
+     bb= (/2.79,  4.26, 4.74, 5.33, 3.86,  5.25,&
+       &    6.77,  8.72,  8.17, 10.73,  10.39, 11.55,                          &
+       &    5.25,  0.0,  2.79, 4.26,  11.55,  2.79,                            &
+       &    2.79,  0.00,  0.00, 0.00,  0.00,  0.00,                            &
+       &    0.00,  0.00,  0.00, 0.00,  0.00,  0.00/)
+     satpsi= (/0.069, 0.036, 0.141, 0.759, 0.955, &
+       &   0.355, 0.135, 0.617, 0.263, 0.098, 0.324, 0.468,                    &
+       &   0.355, 0.00, 0.069, 0.036, 0.468, 0.069,                            &
+       &   0.069, 0.00, 0.00, 0.00, 0.00, 0.00,                                &
+       &   0.00, 0.00, 0.00, 0.00, 0.00, 0.00/)
+
+ end subroutine set_soilveg_noahmp
+
+ ! based on the SoilDA increment codes by Clara Draper, Yuan Xue, Tseganeh Gichamo
+ subroutine add_soil_increments(sfc_inc_file, lsoil)  
+   
+   use io
+
+   implicit none
+
+   character(len=*), intent(in)   :: sfc_inc_file
+   integer, intent(in)            :: lsoil  
+
+   real                  :: stc_inc(num_tiles, lsoil, itile, jtile), slc_inc(num_tiles, lsoil, itile, jtile)
+   real                  :: maxsmc(30), bb(30), satpsi(30)
+   real                  :: smp(itile*jtile), slc_new(itile*jtile)
+   integer               :: soiltype(itile*jtile), vegtype(itile*jtile)
+   logical               :: slc_updated(itile*jtile), apply_increments_mask(itile*jtile)
+   real                  :: zsoil(4) = (/ -0.1, -0.4, -1.0, -2.0 /)
+   real                  :: dz(4) ! layer thickness
+   integer               :: i, j, k, istart, iend
+   real, parameter       :: con_t0c = 273.16, con_hfus=0.3336e06, con_g=9.80616 ! Tmelt, latent heat of fusion(J/kg),grav. accl
+   integer, parameter    :: lnd_ice=15
+
+   print*, ''
+   print*, "gaussian sfcanal: start adding soil increments"
+
+   call read_soil_increments(sfc_inc_file, num_tiles, lsoil, itile, jtile, stc_inc, slc_inc)
+
+   call set_soilveg_noahmp(maxsmc, bb, satpsi)
+
+   dz(1) = -zsoil(1)
+   do k = 2, 4
+     dz(k) = -zsoil(k) + zsoil(k-1)
+   enddo
+
+   do i=1, num_tiles
+     istart = itile*jtile * (i-1) + 1
+     iend   = istart + itile*jtile - 1
+
+     soiltype = nint(tile_data%stype(istart:iend))  !tile_data%stype(ijtile*num_tiles))
+     vegtype  = nint(tile_data%vtype(istart:iend))
+
+     !Mask: The regridded soil increments have 0 values where mask=non-land/snow
+     apply_increments_mask = .false.
+     where((soiltype .gt. 0) .and. (soiltype .le. 30) .and. (vegtype .ne. lnd_ice) .and. (.not.(tile_data%sheleg(istart:iend) .gt. 0.001)) )
+       apply_increments_mask = .true.
+     end where
+
+     do k=1, lsoil
+       
+       slc_updated = .false.   !Note stc_updated is tracked through stc_inc > 0
+       
+       !skip background frozen cells for slc update
+       where(apply_increments_mask .and. tile_data%stc(istart:iend,k) .ge. con_t0c .and. tile_data%smc(istart:iend,k) - tile_data%slc(istart:iend,k) .le. 0.001)
+        tile_data%slc(istart:iend,k) = max(tile_data%slc(istart:iend,k) + reshape(slc_inc(i,k,:,:), (/itile*jtile/)), 0.0) !ensure >=0
+        tile_data%smc(istart:iend,k) = max(tile_data%smc(istart:iend,k) + reshape(slc_inc(i,k,:,:), (/itile*jtile/)), 0.0)
+        slc_updated = .true.
+       end where
+       
+       where(apply_increments_mask) tile_data%stc(istart:iend,k) = tile_data%stc(istart:iend,k) + reshape(stc_inc(i,k,:,:), (/itile*jtile/))
+
+       !recompute supercool liquid water,smc_anl remain unchanged
+       !processing only locations with stc change (non-zero increments)
+       where(apply_increments_mask .and. abs(reshape(stc_inc(i,k,:,:), (/itile*jtile/))) .gt. 0.0001 .and. tile_data%stc(istart:iend,k) .lt. con_t0c )
+        smp = con_hfus*(con_t0c-tile_data%stc(istart:iend,k))/(con_g*tile_data%stc(istart:iend,k)) !(m)
+        slc_new = maxsmc(soiltype)*(smp/satpsi(soiltype))**(-1./bb(soiltype))
+        tile_data%slc(istart:iend,k) = max( min(slc_new, tile_data%smc(istart:iend,k)), 0.0 )
+       end where
+
+       !if temp > tfreeze, melt all soil ice (if any). Use updated stc, not background
+       where(apply_increments_mask .and. abs(reshape(stc_inc(i,k,:,:), (/itile*jtile/))) .gt. 0.0001 .and. tile_data%stc(istart:iend,k) .ge. con_t0c )
+         tile_data%slc(istart:iend,k) = tile_data%smc(istart:iend,k)
+       end where
+
+       ! apply SM bounds
+       where(slc_updated .and. abs(reshape(slc_inc(i,k,:,:), (/itile*jtile/))) .gt. 0.000001)
+         ! noah-mp minimum is 1 mm per layer (in SMC)
+         ! no need to maintain frozen amount, would be v. small.
+         tile_data%slc(istart:iend,k) = max(tile_data%slc(istart:iend,k), 0.001/dz(k))
+         tile_data%smc(istart:iend,k) = max(tile_data%smc(istart:iend,k), 0.001/dz(k))
+       end where
+
+     enddo  !lsoil
+
+   enddo  !num tiles
+
+   print*, "gaussian sfcanal: finished adding soil increments"
+   print*, ''
+
+   return   
+
+ end subroutine add_soil_increments
+
+ !-------------------------------------------------------------------------------------------
 ! Netcdf error routine.
 !-------------------------------------------------------------------------------------------
 

@@ -46,7 +46,7 @@ GAUSSIANATMSSH=${GAUSSIANATMSSH:-$HOMEgfs/ush/gaussian_c2g_atms.sh}
 
 $GAUSSIANATMSSH
 
-ls ${memdir}/${APREFIX}atm${AFHR}${ASUFFIX} > /dev/null 2>&1
+ls ${memdir}/${APREFIX}atm.${AFHR}${ASUFFIX} > /dev/null 2>&1
 export err=$?
 
 auxfhr=_auxfhr
@@ -60,12 +60,12 @@ if [[ $atminc = ".false." ]]; then
      
   $GAUSSIANSFCSH
   
-  ls $memdir/${APREFIX}sfcf$( printf "%03d" $fhour)${ASUFFIX} > /dev/null 2>&1
+  ls $memdir/${APREFIX}sfc.f$( printf "%03d" $fhour)${ASUFFIX} > /dev/null 2>&1
   export err=$?
 fi
 
 if [[ $err == 0 && -s $memdir/ && $atminc = ".false." ]]; then
-   printf " completed fv3gfs fhour=%.*f %s" 3 $fhour $CDATE > $memdir/${APREFIX}atm.logf$( printf "%03d" $fhour).txt
+   printf " completed fv3gfs fhour=%.*f %s" 3 $fhour $CDATE > $memdir/${APREFIX}log.f$( printf "%03d" $fhour).txt
 fi
 
 set +x

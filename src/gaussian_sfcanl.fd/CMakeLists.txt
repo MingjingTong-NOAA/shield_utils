@@ -14,7 +14,7 @@ set(exe_name gaussian_sfcanl.x)
 add_executable(${exe_name} ${fortran_src})
 target_link_libraries(${exe_name} PRIVATE NetCDF::NetCDF_Fortran
                                           bacio::bacio_4
-                                          sp::sp_4
+                                          ip::ip_4
                                           w3emc::w3emc_d
                                           nemsio::nemsio)
 

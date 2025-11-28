@@ -19,12 +19,13 @@ if(NOT CMAKE_BUILD_TYPE MATCHES "^(Debug|Release|RelWithDebInfo|MinSizeRel)$")
                                                "MinSizeRel" "RelWithDebInfo")
 endif()
 
-if(NOT CMAKE_Fortran_COMPILER_ID MATCHES "^(GNU|Intel)$")
+if(NOT CMAKE_Fortran_COMPILER_ID MATCHES "^(GNU|Intel|IntelLLVM)$")
   message(WARNING "${CMAKE_Fortran_COMPILER_ID} is not supported.")
 endif()
 
 # User options.
 option(OPENMP "use OpenMP threading" ON)
+option(LINK_W3EMC "Link w3emc library" ON)
 
 # Find packages.
 find_package(MPI REQUIRED)
@@ -36,7 +37,8 @@ endif()
 # NCEPLibs dependencies.
 find_package(bacio REQUIRED)
 find_package(w3emc REQUIRED)
-find_package(sp REQUIRED)
+find_package(ip REQUIRED)
+find_package(ncio REQUIRED)
 find_package(nemsio REQUIRED)
 find_package(sigio REQUIRED)
 
@@ -54,12 +56,5 @@ elseif(CMAKE_Fortran_COMPILER_ID MATCHES "^(GNU)$")
   set(CMAKE_Fortran_FLAGS_DEBUG "-O0 -ggdb -fno-unsafe-math-optimizations -frounding-math -fsignaling-nans -ffpe-trap=invalid,zero,overflow -fbounds-check")
 endif()
 
-if(CMAKE_C_COMPILER_ID MATCHES "^(Intel)$")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -traceback")
-  set(CMAKE_C_FLAGS_RELEASE "-O2")
-  set(CMAKE_C_FLAGS_DEBUG "-O0")
-endif()
-
 # Build and install code.
 add_subdirectory(src)
-

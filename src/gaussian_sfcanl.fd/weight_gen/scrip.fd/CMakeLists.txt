@@ -10,9 +10,8 @@ endif()
 
 set(exe_name scrip.x)
 add_executable(${exe_name} ${fortran_src})
-target_link_libraries(
-  ${exe_name}
-  sp::sp_d
-  NetCDF::NetCDF_Fortran)
+target_link_libraries(${exe_name} PRIVATE NetCDF::NetCDF_Fortran
+                                          ip::ip_4
+                                          w3emc::w3emc_d)
 
 install(TARGETS ${exe_name} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

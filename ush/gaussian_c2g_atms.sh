@@ -75,7 +75,7 @@
 #
 #     output data: $PGMOUT
 #                  $PGMERR
-#                  $COMOUT/${APREFIX}atmf${ASUFFIX}
+#                  $COMOUT/${APREFIX}atm.f${ASUFFIX}
 #
 # Remarks:
 #
@@ -193,7 +193,7 @@ else
 fi
 
 # output gaussian global forecast files
-${NLN} ${memdir}/${APREFIX}atm${AFHR}${ASUFFIX} ./atm${AFHR}${ASUFFIX}
+${NLN} ${memdir}/${APREFIX}atm.${AFHR}${ASUFFIX} ./atm${AFHR}${ASUFFIX}
 
 # Executable namelist
 cat > fv3_da.nml <<EOF

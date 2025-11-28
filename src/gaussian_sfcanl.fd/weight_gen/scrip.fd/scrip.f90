@@ -6,6 +6,8 @@
 ! two extra rows for the N/S poles.
 !----------------------------------------------------------------------
 
+ use sp_mod, only: splat
+
  implicit none
 
  character(len=128)             :: outfile
@@ -31,7 +33,7 @@
  real(kind=8), allocatable      :: dum2d(:,:), latsp(:,:), lonsp(:,:)
  real(kind=8), allocatable      :: lats_corner(:,:,:), lons_corner(:,:,:)
  real(kind=8), allocatable      :: latsp_corner(:,:,:), lonsp_corner(:,:,:)
- real(kind=8), allocatable      :: slat(:), wlat(:)
+ real(kind=4), allocatable      :: slat(:), wlat(:)
 
  include "netcdf.inc"
 
