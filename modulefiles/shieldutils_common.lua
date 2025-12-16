@@ -1,5 +1,5 @@
 help([[
-Load common modules to build GFS utilities on all machines
+Load common modules to build SHiELD utilities on all machines
 ]])
 
 local netcdf_c_ver=os.getenv("netcdf_c_ver") or "4.9.2"
@@ -35,4 +35,3 @@ load(pathJoin("wrf-io", wrf_io_ver))
 load(pathJoin("ncio", ncio_ver))
 load(pathJoin("g2", g2_ver))
 load(pathJoin("landsfcutil", landsfcutil_ver))
-load(pathJoin("wgrib2", wgrib2_ver))

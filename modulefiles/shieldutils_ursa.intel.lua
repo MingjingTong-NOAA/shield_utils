@@ -1,5 +1,5 @@
 help([[
-Build environment for SHiELD utilities on Hera
+Build environment for SHiELD utilities on Ursa
 ]])
 
 prepend_path("MODULEPATH", "/contrib/spack-stack/spack-stack-1.9.2/envs/ue-oneapi-2024.2.1/install/modulefiles/Core")
@@ -16,4 +16,4 @@ setenv("CC","mpiicc")
 setenv("CXX","mpiicpc")
 setenv("FC","mpiifort")
 
-whatis("Description: SHiELD utilities environment on Hera with oneapi Compilers")
+whatis("Description: SHiELD utilities environment on Ursa with oneapi Compilers")

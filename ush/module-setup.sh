@@ -1,15 +1,8 @@
 #!/bin/bash
+# shellcheck disable=SC1091
 set -u
 
-if [[ $MACHINE_ID = jet* ]] ; then
-    # We are on NOAA Jet
-    if ( ! eval module help > /dev/null 2>&1 ) ; then
-        source /apps/lmod/lmod/init/bash
-    fi
-    export LMOD_SYSTEM_DEFAULT_MODULES=contrib
-    module reset
-
-elif [[ $MACHINE_ID = hera* ]] ; then
+if [[ ${MACHINE_ID} = hera* ]] ; then
     # We are on NOAA Hera
     if ( ! eval module help > /dev/null 2>&1 ) ; then
         source /apps/lmod/lmod/init/bash
@@ -17,7 +10,16 @@ elif [[ $MACHINE_ID = hera* ]] ; then
     export LMOD_SYSTEM_DEFAULT_MODULES=contrib
     module reset
 
-elif [[ $MACHINE_ID = orion* ]] ; then
+elif [[ ${MACHINE_ID} = ursa* ]] ; then
+    # We are on NOAA Ursa
+    if ( ! eval module help > /dev/null 2>&1 ) ; then
+        source /apps/lmod/lmod/init/bash
+    fi
+    export LMOD_SYSTEM_DEFAULT_MODULES=contrib
+    module reset
+
+
+elif [[ ${MACHINE_ID} = orion* ]] ; then
     # We are on Orion
     if ( ! eval module help > /dev/null 2>&1 ) ; then
         source /apps/lmod/lmod/init/bash
@@ -25,7 +27,7 @@ elif [[ $MACHINE_ID = orion* ]] ; then
     export LMOD_SYSTEM_DEFAULT_MODULES=contrib
     module reset
 
-elif [[ $MACHINE_ID = hercules* ]] ; then
+elif [[ ${MACHINE_ID} = hercules* ]] ; then
     # We are on Hercules
     if ( ! eval module help > /dev/null 2>&1 ) ; then
         source /apps/other/lmod/lmod/init/bash
@@ -33,52 +35,36 @@ elif [[ $MACHINE_ID = hercules* ]] ; then
     export LMOD_SYSTEM_DEFAULT_MODULES=contrib
     module reset
 
-elif [[ $MACHINE_ID = s4* ]] ; then
-    # We are on SSEC Wisconsin S4
-    if ( ! eval module help > /dev/null 2>&1 ) ; then
-        source /usr/share/lmod/lmod/init/bash
-    fi
-    export LMOD_SYSTEM_DEFAULT_MODULES=license_intel
-    module reset
-
-elif [[ $MACHINE_ID = wcoss2 ]]; then
+elif [[ ${MACHINE_ID} == wcoss2 ]]; then
     # We are on WCOSS2
     module reset
 
-elif [[ $MACHINE_ID = cheyenne* ]] ; then
-    # We are on NCAR Cheyenne
-    if ( ! eval module help > /dev/null 2>&1 ) ; then
-        source /glade/u/apps/ch/modulefiles/default/localinit/localinit.sh
-    fi
+elif [[ ${MACHINE_ID} == container ]] ; then
+    # We are in a container
+    # Always source the lmod init script to override the system module paths and instead use the container modules
+    source /usr/lmod/lmod/init/bash
     module purge
 
-elif [[ $MACHINE_ID = stampede* ]] ; then
-    # We are on TACC Stampede
+elif [[ ${MACHINE_ID} == gaeac6 ]]; then
+    # We are on GAEA C6.
     if ( ! eval module help > /dev/null 2>&1 ) ; then
-        source /opt/apps/lmod/lmod/init/bash
+        # shellcheck disable=1091
+        source /opt/cray/pe/lmod/lmod/init/bash
     fi
-    module purge
-
-elif [[ $MACHINE_ID = gaeac5 ]] ; then
-    source ${MODULESHOME}/init/bash
     module reset
-elif [[ ${MACHINE_ID} = gaeac6 ]] ; then
-    source /opt/cray/pe/lmod/8.7.31/init/bash
 
-elif [[ $MACHINE_ID = expanse* ]]; then
-    # We are on SDSC Expanse
+elif [[ ${MACHINE_ID} == derecho* ]]; then
+    # We are on NCAR derecho
     if ( ! eval module help > /dev/null 2>&1 ) ; then
-        source /etc/profile.d/modules.sh
+        source /glade/u/apps/derecho/24.12/spack/opt/spack/lmod/8.7.37/gcc/12.4.0/nr3e/lmod/lmod/init/bash
     fi
-    module purge
-    module load slurm/expanse/20.02.3
+    module --force purge
 
-elif [[ $MACHINE_ID = discover* ]]; then
-    # We are on NCCS discover
-    export SPACK_ROOT=/discover/nobackup/mapotts1/spack
-    export PATH=$PATH:$SPACK_ROOT/bin
-    . $SPACK_ROOT/share/spack/setup-env.sh
+elif [[ ${MACHINE_ID} == noaacloud ]] ; then
+    # We are on NOAA Cloud
+    module purge
 
 else
-    echo WARNING: UNKNOWN PLATFORM 1>&2
+    echo "WARNING: UNKNOWN PLATFORM" 1>&2
+
 fi

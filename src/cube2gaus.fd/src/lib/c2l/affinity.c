@@ -9,7 +9,7 @@
 #include <sys/resource.h>
 #include <sys/syscall.h>
 
-static pid_t gettid(void)
+static pid_t local_gettid(void)
 {
   return syscall(__NR_gettid);
 }
@@ -20,16 +20,16 @@ static pid_t gettid(void)
  */
 int get_cpu_affinity(void)
 {
-  cpu_set_t coremask;		/* core affinity mask */
+  cpu_set_t coremask;           /* core affinity mask */
 
   CPU_ZERO(&coremask);
-  if (sched_getaffinity(gettid(),sizeof(cpu_set_t),&coremask) != 0) {
-    fprintf(stderr,"Unable to get thread %d affinity. %s\n",gettid(),strerror(errno));
+  if (sched_getaffinity(local_gettid(),sizeof(cpu_set_t),&coremask) != 0) {
+    fprintf(stderr,"Unable to get thread %d affinity. %s\n",local_gettid(),strerror(errno));
   }
 
   int cpu;
-  int first_cpu = -1;	/* first CPU in range */
-  int last_cpu = -1;	/* last CPU in range */
+  int first_cpu = -1;   /* first CPU in range */
+  int last_cpu = -1;    /* last CPU in range */
   for (cpu=0;cpu < CPU_SETSIZE;cpu++) {
     if (CPU_ISSET(cpu,&coremask)) {
       if (first_cpu == -1) {
@@ -43,7 +43,7 @@ int get_cpu_affinity(void)
   return (last_cpu == -1) ? first_cpu : -1;
 }
 
-int get_cpu_affinity_(void) { return get_cpu_affinity(); }	/* Fortran interface */
+int get_cpu_affinity_(void) { return get_cpu_affinity(); }      /* Fortran interface */
 
 
 /*
@@ -51,13 +51,13 @@ int get_cpu_affinity_(void) { return get_cpu_affinity(); }	/* Fortran interface 
  */
 void set_cpu_affinity( int cpu )
 {
-  cpu_set_t coremask;		/* core affinity mask */
+  cpu_set_t coremask;           /* core affinity mask */
 
   CPU_ZERO(&coremask);
   CPU_SET(cpu,&coremask);
-  if (sched_setaffinity(gettid(),sizeof(cpu_set_t),&coremask) != 0) {
-    fprintf(stderr,"Unable to set thread %d affinity. %s\n",gettid(),strerror(errno));
+  if (sched_setaffinity(local_gettid(),sizeof(cpu_set_t),&coremask) != 0) {
+    fprintf(stderr,"Unable to set thread %d affinity. %s\n",local_gettid(),strerror(errno));
   }
 }
 
-void set_cpu_affinity_(int *cpu) { set_cpu_affinity(*cpu); }	/* Fortran interface */
+void set_cpu_affinity_(int *cpu) { set_cpu_affinity(*cpu); }    /* Fortran interface */
