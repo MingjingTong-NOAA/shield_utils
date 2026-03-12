@@ -20,10 +20,9 @@
 #   Imported Shell Variables:
 #     CASE          Model resolution.  Defaults to C768.
 #     DONST         Process NST fields when 'yes'.  Default is 'no'.
-#     HOMEgfs       Directory for gfs version.  Default is
-#                   $BASEDIR/gfs_ver.v15.0.0}
+#     HOMEglobal    Directory for global workflow.
 #     FIXam         Directory for the global fixed climatology files.
-#                   Defaults to $HOMEgfs/fix/am
+#                   Defaults to $HOMEglobal/fix/am
 #     FIXWGTS       Weight file to use for interpolation
 #     DATA          Working directory
 #                   (if nonexistent will be made, used and deleted)
@@ -33,7 +32,7 @@
 #                   defaults to current working directory
 #     XC            Suffix to add to executables. Defaults to none.
 #     GAUSFCFCSTEXE  Program executable.
-#                   Defaults to $EXECgfs/gaussian_sfcfcst.exe
+#                   Defaults to $EXECglobal/gaussian_sfcfcst.exe
 #     INISCRIPT     Preprocessing script.  Defaults to none.
 #     LOGSCRIPT     Log posting script.  Defaults to none.
 #     ENDSCRIPT     Postprocessing script
@@ -73,7 +72,7 @@
 #
 #     fixed data : ${FIXorog}/${CASE}/${CASE}.mx${OCNRES}_oro_data.tile*.nc
 #                  ${FIXWGTS}
-#                  ${FIXgfs}/am/global_hyblev.l65.txt
+#                  ${FIXglobal}/am/global_hyblev.l65.txt
 #
 #     input data : ${COMIN_ATMOS_RESTART}/${PDY}.${cyc}0000.sfcanl_data.tile*.nc
 #
@@ -121,7 +120,7 @@ DATA=${DATA:-$(pwd)}
 
 #  Filenames.
 XC=${XC:-''}
-GAUSFCFCSTEXE=${GAUSFCFCSTEXE:-$EXECgfs/gaussian_sfcfcst.x}
+GAUSFCFCSTEXE=${GAUSFCFCSTEXE:-$EXECglobal/gaussian_sfcfcst.x}
 SIGLEVEL=${SIGLEVEL:-$FIXam/global_hyblev.l${LEVS}.txt}
 
 CDATE=${CDATE:?}

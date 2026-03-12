@@ -42,7 +42,7 @@ fi
 
 $NLN ${memdir}/${APREFIX}log${AFHR}_c2g $DATA/log${AFHR}
 
-GAUSSIANATMSSH=${GAUSSIANATMSSH:-$HOMEgfs/ush/gaussian_c2g_atms.sh}
+GAUSSIANATMSSH=${GAUSSIANATMSSH:-$HOMEglobal/ush/gaussian_c2g_atms.sh}
 
 $GAUSSIANATMSSH
 
@@ -53,9 +53,9 @@ auxfhr=_auxfhr
 
 if [[ $atminc = ".false." ]]; then
   if [[ $auxfhr = "YES" ]]; then
-     GAUSSIANSFCSH=$HOMEgfs/ush/gaussian_sfcfcst_nodiagvar.sh
+     GAUSSIANSFCSH=$HOMEglobal/ush/gaussian_sfcfcst_nodiagvar.sh
   else 
-     GAUSSIANSFCSH=$HOMEgfs/ush/gaussian_sfcfcst.sh
+     GAUSSIANSFCSH=$HOMEglobal/ush/gaussian_sfcfcst.sh
   fi
      
   $GAUSSIANSFCSH

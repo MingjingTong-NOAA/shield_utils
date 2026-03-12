@@ -18,8 +18,7 @@
 #
 #   Imported Shell Variables:
 #     CASE          Model resolution.  Defaults to C768.
-#     HOMEgfs       Directory for gfs version.  Default is
-#                   $BASEDIR/gfs_ver.v15.0.0}
+#     HOMEglobal    Directory for global workflow.
 #     FIXWGTS       Weight file to use for interpolation
 #     DATA          Working directory
 #                   (if nonexistent will be made, used and deleted)
@@ -29,7 +28,7 @@
 #                   defaults to current working directory
 #     XC            Suffix to add to executables. Defaults to none.
 #     GAUATMSEXE    Program executable.
-#                   Defaults to $EXECgfs/gaussian_atms.exe
+#                   Defaults to $EXECglobal/gaussian_atms.exe
 #     INISCRIPT     Preprocessing script.  Defaults to none.
 #     LOGSCRIPT     Log posting script.  Defaults to none.
 #     ENDSCRIPT     Postprocessing script
@@ -112,8 +111,8 @@ DATA=${DATA:-$(pwd)}
 
 #  Filenames.
 XC=${XC:-''}
-GAUATMSEXE=${GAUATMSEXE:-$EXECgfs/fv3_c2g_atms.x}
-#GAUATMSEXE=${GAUATMSEXE:-$EXECgfs/fv3_da_out_32bit.x}
+GAUATMSEXE=${GAUATMSEXE:-$EXECglobal/fv3_c2g_atms.x}
+#GAUATMSEXE=${GAUATMSEXE:-$EXECglobal/fv3_da_out_32bit.x}
 
 CDATE=${CDATE:?}
 
